@@ -27,6 +27,9 @@ public enum TokenType {
     LLAVECIERRA, // }
     PUNTO, // .
     PUNTOYCOMA, // ;
+    COMA,  // ,
+    DOSPUNTOS, // :
+    EOF, // End of file
 
     // Palabras reservadas
     PRCLASS, // class 
@@ -65,5 +68,4 @@ public enum TokenType {
     OPMAYORIGUAL, // >=
     OPDISTINTO, // !=
     OPASIGN, // =
-
 }

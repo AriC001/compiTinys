@@ -1,23 +1,24 @@
 package compiladores.lexicon;
 
 public class Token {
-    public String tokenName;
-    public String lexeme;
-    public int lineCode;
-    public int columnCode;
+    private TokenType tokenName;
+    private String lexeme;
+    private int lineCode;
+    private int columnCode;
 
-    public Token(String tokenName, String lexeme, int lineCode, int columnCode) {
+    public Token(TokenType tokenName, String lexeme, int lineCode, int columnCode) {
         this.tokenName = tokenName;
         this.lexeme = lexeme;
         this.lineCode = lineCode;
         this.columnCode = columnCode;
     }
 
+
     public String getTokenName() {
-        return tokenName;
+        return tokenName.name();
     }
 
-    public void setTokenName(String tokenName) {
+    public void setTokenType(TokenType tokenName) {
         this.tokenName = tokenName;
     }
 
@@ -56,6 +57,11 @@ public class Token {
 
     public void incrementColumnCode(){
         this.columnCode += 1;
+    }
+
+    @Override
+    public String toString() {
+        return tokenName.name() + " | " + lexeme + " | Line: " + lineCode + " | Column: " + columnCode;
     }
 
 }
