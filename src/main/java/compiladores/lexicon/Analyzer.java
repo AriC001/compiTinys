@@ -137,6 +137,10 @@ public class Analyzer {
         if (Character.isDigit(c)) {
             return leerNumero(lineaInicio, columnaInicio);
         }
+        if(Character.isUpperCase(c)) {
+            return leerTokenMayus(lineaInicio, columnaInicio);
+        }
+
         if (Character.isLetter(c) || c == '_') {
             return leerToken(lineaInicio, columnaInicio);
         }
@@ -301,6 +305,18 @@ public class Analyzer {
             return new Token(reservedWords.get(tokenStr), tokenStr, lineaInicio, columnaInicio);
         }
         return new Token(TokenType.IDMETAT, tokenStr, lineaInicio, columnaInicio);
+    }
+
+    private Token leerTokenMayus(int lineaInicio, int columnaInicio) {
+        StringBuilder tokenClass = new StringBuilder();
+        while (Character.isLetterOrDigit(mirarActual()) || mirarActual() == '_') {
+            tokenClass.append(siguienteCaracter());
+        }
+        String tokenStr = tokenClass.toString();
+        if (reservedWords.containsKey(tokenStr)) {
+            return new Token(reservedWords.get(tokenStr), tokenStr, lineaInicio, columnaInicio);
+        }
+        return new Token(TokenType.IDCLASS, tokenStr, lineaInicio, columnaInicio);
     }
 
     private Token leerCadena(int lineaInicio, int columnaInicio) {
