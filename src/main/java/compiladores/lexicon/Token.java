@@ -48,11 +48,11 @@ public class Token {
     }
 
     public int getColumnCode() {
-        return lineCode;
+        return columnCode;
     }
 
-    public void setColumnCode(int lineaCodigo) {
-        this.lineCode = lineaCodigo;
+    public void setColumnCode(int columnCode) {
+        this.columnCode = columnCode;
     }
 
     public void incrementColumnCode(){
