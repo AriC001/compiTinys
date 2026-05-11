@@ -13,9 +13,9 @@ public class Analyzer {
     private BufferedReader reader;
     private String bufferLinea = null;
     private int indiceLinea = 0;
-    public int posicionActual = 0;
-    public int posicionLineaActual = 0;
-    public int posicionColumnaActual = 0;
+    public int posicionActual = 0;        // Offset absoluto de caracteres consumidos en el archivo; sirve para avance interno.
+    public int posicionLineaActual = 0;   // Línea actual del archivo (1-based); se usa en tokens y errores.
+    public int posicionColumnaActual = 0; // Columna actual dentro de la línea (cursor interno, base 0; al reportar se suma 1).
     private Map<String, TokenType> reservedWords = new HashMap<>();
 
     public Analyzer(File file) {
