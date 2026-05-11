@@ -98,16 +98,50 @@ public class Analyzer {
         }
     }
 
-    public void nextToken(){
+    public Token nextToken(){
         // Aquí se implementará el reconocimiento de tokens usando el buffer
         // Ejemplo de avance de caracteres:
         char c = siguienteCaracter();
-        esEspacioComentario(c);
+        c = esEspacioComentario(c);
         // Lógica de reconocimiento de tokens irá aquí
+        if(Character.isDigit(c)){
+            return leerNumero(c);
+        }
+        if (Character.isLetter(c) || c == '_') {
+            return leerToken(c);
+        }
+        if (c == '"' ) {
+            return leerCadena(c);
+        }
+        switch (c) {
+            case '(': return new Token(TokenType.PARABRE, "(", posicionLineaActual, posicionColumnaActual);
+            case ')': return new Token(TokenType.PARCIERRA, ")", posicionLineaActual, posicionColumnaActual);
+            case '[': return new Token(TokenType.CORABRE, "[", posicionLineaActual, posicionColumnaActual);
+            case ']': return new Token(TokenType.CORCIERRA, "]", posicionLineaActual, posicionColumnaActual);
+            case '{': return new Token(TokenType.LLAVEABRE, "{", posicionLineaActual, posicionColumnaActual);
+            case '}': return new Token(TokenType.LLAVECIERRA, "}", posicionLineaActual, posicionColumnaActual);
+            case '.': return new Token(TokenType.PUNTO, ".", posicionLineaActual, posicionColumnaActual);
+            case ';': return new Token(TokenType.PUNTOYCOMA, ";", posicionLineaActual, posicionColumnaActual);
+            case ',': return new Token(TokenType.COMA, ",", posicionLineaActual, posicionColumnaActual);
+            case ':': return new Token(TokenType.DOSPUNTOS, ":", posicionLineaActual, posicionColumnaActual);
+            // operadores y otros símbolos
+            case '+': return new Token(TokenType.OPSUMA, "+", posicionLineaActual, posicionColumnaActual);
+            case '-': return new Token(TokenType.OPRESTA, "-", posicionLineaActual, posicionColumnaActual);
+            case '*': return new Token(TokenType.OPMULT, "*", posicionLineaActual, posicionColumnaActual);
+            case '/': return new Token(TokenType.OPDIVENT, "/", posicionLineaActual, posicionColumnaActual);
+            case '&': return new Token(TokenType.OPAND, "&", posicionLineaActual, posicionColumnaActual);
+            case '|': return new Token(TokenType.OPAND, "|", posicionLineaActual, posicionColumnaActual);
+            case '!': return new Token(TokenType.OPINCR, "!", posicionLineaActual, posicionColumnaActual);
+        }
 
+        /*if (c == (char)-1) {
+            return new Token(TokenType.EOF, "", posicionLineaActual, posicionColumnaActual);
+        }*/
+        // Si no se reconoce el carácter, se puede lanzar un error o devolver un token de error
+        return new Token(TokenType.EOF, "", posicionLineaActual, posicionColumnaActual);
     }
 
-    private void esEspacioComentario(char c) {
+    private char esEspacioComentario(char c) {
         boolean comentario = true;
         while (comentario) {
 
@@ -130,6 +164,7 @@ public class Analyzer {
             comentario = false;
             break; // no es whitespace ni comentario
         }
+        return c;
     }
 
     private char mirarSiguiente() {
@@ -164,5 +199,54 @@ public class Analyzer {
             }
         }
         return c;
+    }
+
+    private Token leerNumero(char c) {
+        StringBuilder numero = new StringBuilder();
+        while (Character.isDigit(c)) {
+            numero.append(c);
+            c = siguienteCaracter();
+        }
+        // Aquí se podría validar el número y crear un token LITINT
+        return new Token(TokenType.LITINT, numero.toString(), posicionLineaActual, posicionColumnaActual - numero.length());
+    }
+
+    private Token leerToken(char c) {
+        StringBuilder token = new StringBuilder();
+        while (Character.isLetterOrDigit(c) || c == '_') {
+            token.append(c);
+            c = siguienteCaracter();
+        }
+        String tokenStr = token.toString();
+        // Verificar si es una palabra reservada
+        if (reservedWords.containsKey(tokenStr)) {
+            return new Token(reservedWords.get(tokenStr), tokenStr, posicionLineaActual, posicionColumnaActual - tokenStr.length());
+        }
+        // Si no es una palabra reservada, es un identificador
+        return new Token(TokenType.IDMETAT, tokenStr, posicionLineaActual, posicionColumnaActual - tokenStr.length());
+    }
+
+    private Token leerCadena(char c) {
+        StringBuilder cadena = new StringBuilder();
+        while (true) {
+            c = siguienteCaracter();
+            if (c == '"' || c == (char)-1) {
+                break; // Fin del literal de cadena
+            }
+            if (c == '\\') { // Manejar caracteres de escape
+                char siguiente = siguienteCaracter();
+                switch (siguiente) {
+                    case 'n': cadena.append('\n'); break;
+                    case 't': cadena.append('\t'); break;
+                    case 'r': cadena.append('\r'); break;
+                    case '"': cadena.append('"'); break;
+                    case '\\': cadena.append('\\'); break;
+                    default: cadena.append(siguiente); break; // Caracter no reconocido, se agrega tal cual
+                }
+            } else {
+                cadena.append(c);
+            }
+        }
+        return new Token(TokenType.LITSTR, cadena.toString(), posicionLineaActual, posicionColumnaActual - cadena.length() - 2);
     }
 }
