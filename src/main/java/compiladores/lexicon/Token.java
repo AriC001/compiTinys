@@ -14,8 +14,8 @@ public class Token {
     }
 
 
-    public String getTokenName() {
-        return tokenName.name();
+    public TokenType getTokenName() {
+        return tokenName;
     }
 
     public void setTokenType(TokenType tokenName) {

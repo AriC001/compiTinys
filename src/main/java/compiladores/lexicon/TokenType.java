@@ -49,7 +49,8 @@ public enum TokenType {
     PRSELF, // self 
     PRDIV, // div 
     PRIN, // in 
-    PRVOID, // void 
+    PRVOID, // void
+    PSTART, // start
 
     // Operaciones
     OPSUMA, // +
@@ -68,4 +69,6 @@ public enum TokenType {
     OPMAYORIGUAL, // >=
     OPDISTINTO, // !=
     OPASIGN, // =
+    OPASIGNSUMA // =+
+
 }

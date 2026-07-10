@@ -13,9 +13,9 @@ public class Analyzer {
     private BufferedReader reader;
     private String bufferLinea = null;
     private int indiceLinea = 0;
-    public int posicionActual = 0;        // Offset absoluto de caracteres consumidos en el archivo; sirve para avance interno.
-    public int posicionLineaActual = 0;   // Línea actual del archivo (1-based); se usa en tokens y errores.
-    public int posicionColumnaActual = 0; // Columna actual dentro de la línea (cursor interno, base 0; al reportar se suma 1).
+    public int offsetActual = 0;        // Offset absoluto de caracteres consumidos en el archivo; sirve para avance interno.
+    public int lineaActual = 0;   // Línea actual del archivo (1-based); se usa en tokens y errores.
+    public int columnaActual = 0; // Columna actual dentro de la línea (cursor interno, base 0; al reportar se suma 1).
     private Map<String, TokenType> reservedWords = new HashMap<>();
 
     public Analyzer(File file) {
@@ -56,7 +56,7 @@ public class Analyzer {
     }
 
     private RuntimeException errorLexico(String mensaje) {
-        return new RuntimeException(mensaje + " (linea " + posicionLineaActual + ", columna " + (posicionColumnaActual + 1) + ")");
+        return new RuntimeException(mensaje + " (linea " + lineaActual + ", columna " + (columnaActual + 1) + ")");
     }
 
     private char mirarActual() {
@@ -85,8 +85,8 @@ public class Analyzer {
             bufferLinea = reader.readLine();
             indiceLinea = 0;
             if (bufferLinea != null) {
-                posicionLineaActual++;
-                posicionColumnaActual = 0;
+                lineaActual++;
+                columnaActual = 0;
             }
         } catch (IOException e) {
             bufferLinea = null;
@@ -99,7 +99,7 @@ public class Analyzer {
             return (char)-1; // EOF
         }
         if (indiceLinea >= bufferLinea.length()) {
-            posicionActual++;
+            offsetActual++;
             cargarSiguienteLinea();
             if (bufferLinea == null) {
                 return (char)-1; // EOF
@@ -109,8 +109,8 @@ public class Analyzer {
         }
         char c = bufferLinea.charAt(indiceLinea);
         indiceLinea++;
-        posicionColumnaActual++;
-        posicionActual++;
+        columnaActual++;
+        offsetActual++;
         return c;
     }
 
@@ -128,11 +128,11 @@ public class Analyzer {
 
         char c = mirarActual();
         if (c == (char) -1) {
-            return new Token(TokenType.EOF, "", posicionLineaActual, posicionColumnaActual + 1);
+            return new Token(TokenType.EOF, "", lineaActual, columnaActual + 1);
         }
 
-        int lineaInicio = posicionLineaActual;
-        int columnaInicio = posicionColumnaActual + 1;
+        int lineaInicio = lineaActual;
+        int columnaInicio = columnaActual + 1;
 
         if (Character.isDigit(c)) {
             return leerNumero(lineaInicio, columnaInicio);
