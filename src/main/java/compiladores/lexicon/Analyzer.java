@@ -53,6 +53,8 @@ public class Analyzer {
         reservedWords.put("Object", TokenType.IDCLASSOBJECT);
         reservedWords.put("Iterator", TokenType.IDCLASSITERATOR);
         reservedWords.put("Int", TokenType.IDCLASSINT);
+        // start is the program entry keyword
+        reservedWords.put("start", TokenType.PSTART);
     }
 
     private RuntimeException errorLexico(String mensaje) {

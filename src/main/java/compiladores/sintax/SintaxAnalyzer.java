@@ -1,15 +1,40 @@
 package compiladores.sintax;
 
+import compiladores.AST.*;
+import compiladores.AST.Definitions.*;
+import compiladores.AST.Statements.*;
+import compiladores.AST.literals.*;
+import compiladores.AST.operations.*;
+import compiladores.AST.typeNodes.*;
 import compiladores.lexicon.Analyzer;
 import compiladores.lexicon.Token;
 import compiladores.lexicon.TokenType;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+
 import static compiladores.lexicon.TokenType.*;
 
 public class SintaxAnalyzer {
-    private Analyzer lexiconAnalyzer;
+    private final Analyzer lexiconAnalyzer;
     Token lookahead;
     Token lookaheadSig;
+    //private static final TokenType OPASIGNSUMA = OPSUMA;
+
+    public SintaxAnalyzer(Analyzer lexiconAnalyzer) {
+        this.lexiconAnalyzer = lexiconAnalyzer;
+        this.lookahead = lexiconAnalyzer.nextToken();
+        this.lookaheadSig = lexiconAnalyzer.nextToken();
+    }
+
+    public ProgramNode parse() {
+        ProgramNode programNode = program();
+        if (lookahead.getTokenName() != EOF) {
+            error(EOF);
+        }
+        return programNode;
+    }
 
 
     void match(TokenType esperado) {
@@ -27,26 +52,52 @@ public class SintaxAnalyzer {
                         + ", columna: "
                         + lookahead.getColumnCode()
                         + "; se esperaba "
-                        + esperados
+                        + Arrays.toString(esperados)
                         + " y se encontró "
-                        + lookahead.getLexeme()
+                        + "'" + lookahead.getLexeme() + "'"
                         + " (" + lookahead.getTokenName() + ")"
         );
     }
 
-    void program() { //parAbre
-        start();
-        listaDefiniciones();
+    ProgramNode program() { //parAbre
+        List<DefinitionNode> clases = listaDefiniciones();
+        StartNode start = start();
+        return new ProgramNode(clases, start);
     }
 
-    void start() {
+    StartNode start() {
         match(PSTART);
-        bloqueMetodo();
+        BlockNode bloque = bloqueMetodo();
+        return new StartNode(bloque);
     }
-    void listaDefiniciones() {
+
+    List<DefinitionNode> listaDefiniciones() {
+        List<DefinitionNode> definiciones = new ArrayList<>();
+        while (lookahead.getTokenName() == PRCLASS || lookahead.getTokenName() == PRIMPL) {
+            definiciones.add(listaDefinicionesF());
+        }
+        return definiciones;
+    }
+
+    DefinitionNode listaDefinicionesF() {
+        if (lookahead.getTokenName() == PRCLASS ) {
+            return classRule();
+        }
+        else if (lookahead.getTokenName() == PRIMPL) {
+            return impl();
+        }
+        else {
+            error(PRCLASS, PRIMPL);
+            return null;
+        }
+    }
+    /*
+    OLD IMPLEMENTATION
+    List<DefinitionNode> listaDefiniciones() {
+        List<DefinitionNode> definiciones = new ArrayList<>();
         if (lookahead.getTokenName() == PARABRE) {
             match(PARABRE);
-            listaDefinicionesF();
+            definiciones.add(listaDefinicionesF());
         }
         else if (lookahead.getTokenName() == PSTART) {
             // lambda
@@ -54,59 +105,77 @@ public class SintaxAnalyzer {
         else {
             error(PARABRE, PSTART);
         }
+        return definiciones;
     }
-    void listaDefinicionesF() {
+    DefinitionNode listaDefinicionesF() {
         if (lookahead.getTokenName() == IDCLASS) {
-            classRule();
+            ClassNode classnode = classRule();
             match(PARCIERRA);
             listaDefiniciones();
+            return classnode;
         }
         else if (lookahead.getTokenName() == PRIMPL) { //IDMETAT o IMPL
-            impl();
+            ImplNode implnode = impl();
             match(PARCIERRA);
             listaDefiniciones();
+            return implnode;
         }
         else {
             error(IDCLASS, IDMETAT, PRIMPL);
         }
-    }
-    void classRule() {
+    }*/
+
+    ClassNode classRule() {
+
+
+        match(PRCLASS);
+
+        String name = lookahead.getLexeme();
         match(IDCLASS);
-        classF();
+        //ClassBody body = classF();
+
+        return classF(name);
     }
-    void classF() {
+    ClassNode classF(String name) {
         if (lookahead.getTokenName() == DOSPUNTOS) {
-            herencia();
+            TypeNode type = herencia();
             match(LLAVEABRE);
-            atributoIt();
+            List<AttributeNode> atributes = atributoIt();
             match(LLAVECIERRA);
+            return new ClassNode(name,type, atributes);
         }
         else if (lookahead.getTokenName() == LLAVEABRE) {
             match(LLAVEABRE);
-            atributoIt();
+            List<AttributeNode> atributes = atributoIt();
             match(LLAVECIERRA);
+            return new ClassNode(name, atributes);
         }
         else {
             error(DOSPUNTOS,LLAVEABRE);
+            return null;
         }
     }
-    void impl() {
+    ImplNode impl() {
         match(PRIMPL);
+        String name = lookahead.getLexeme();
         match(IDCLASS);
         match(LLAVEABRE);
-        while (lookahead.getTokenName() == PRFN || lookahead.getTokenName() == PRST ) {
-            miembroIt();
+        List<DefinitionNode> miembros = new ArrayList<>();
+        while (lookahead.getTokenName() == PRFN || lookahead.getTokenName() == PRST || lookahead.getTokenName() == PUNTO ) {
+            miembros.add(miembro(name));
         }
         match(LLAVECIERRA);
+        return new ImplNode(name,miembros);
     }
-    void herencia() {
+    TypeNode herencia() {
         match(DOSPUNTOS);
-        tipo();
+        return tipo();
     }
-    void miembroIt(){
+    /*
+    void miembroIt(String name){
         if (lookahead.getTokenName() == PUNTO || lookahead.getTokenName() == PRFN || lookahead.getTokenName() == PRST) {
-            miembro();
-            miembroIt();
+            miembro(name);
+            miembroIt(name);
         }
         else if (lookahead.getTokenName() == LLAVECIERRA) {
             // lambda
@@ -115,127 +184,202 @@ public class SintaxAnalyzer {
             error(LLAVEABRE, PUNTO, PRFN, PRST);
         }
     }
-    void miembro(){ //	punto,fn,st
+    */
+    DefinitionNode miembro(String name){ //	punto,fn,st
         if(lookahead.getTokenName() == PRFN || lookahead.getTokenName() == PRST){
-            metodo();
+            return metodo();
         }
         else if(lookahead.getTokenName() == PUNTO){
-            constructor();
+            return constructor(name);
         }
         else{
             error(PRFN, PRST, PUNTO);
+            return null;
         }
     }
-    void constructor (){ //	punto
+    DefinitionNode constructor (String name){ //	punto
         match(PUNTO);
-        argumentoFormal();
-        bloqueMetodo();
+        List<FormalParameterNode> parameters = argumentosFormales();
+        BlockNode body = bloqueMetodo();
+        return new ConstructorNode(name, parameters, body); // Replace with actual constructor node creation
     }
-    void atributoIt(){ //	pub, Str, Bool,Int
-        if (lookahead.getTokenName() == PRPUB || lookahead.getTokenName() == IDCLASSSTR || lookahead.getTokenName() == IDCLASSBOOL || lookahead.getTokenName() == IDCLASSINT) {
-            atributo();
-            atributoIt();
+    List<AttributeNode> atributoIt(){ //	pub, Str, Bool,Int
+        List<AttributeNode> atributos = new ArrayList<>();
+        while (lookahead.getTokenName() == PRPUB || lookahead.getTokenName() == IDCLASSSTR || lookahead.getTokenName() == IDCLASSBOOL || lookahead.getTokenName() == IDCLASSINT) {
+            atributos.addAll(atributo());
         }
-        else if (lookahead.getTokenName() == LLAVECIERRA) {
+        if (lookahead.getTokenName() == LLAVECIERRA) {
+            return atributos;
             // lambda
         }
         else {
             error(PRPUB, IDCLASSSTR, IDCLASSBOOL, IDCLASSINT, LLAVECIERRA);
+            return null;
         }
     }
-    void atributo(){  //	pub, Str, Bool,Int
+    List<AttributeNode> atributo(){  //	pub, Str, Bool,Int
+        VisibilityNode visibility = null;
         if (lookahead.getTokenName() == PRPUB) {
-            visibilidad();
+            visibility = visibilidad();
         }
-        else if (lookahead.getTokenName() == IDCLASSSTR || lookahead.getTokenName() == IDCLASSBOOL || lookahead.getTokenName() == IDCLASSINT ) {
-            tipo();
+        if (lookahead.getTokenName() == IDCLASSSTR || lookahead.getTokenName() == IDCLASSBOOL || lookahead.getTokenName() == IDCLASSINT ) {
+            TypeNode tipo = tipo();
+            List<String> nombres = listaDeclaracionVariables();
+            match(PUNTOYCOMA);
+            List<AttributeNode> atributos = new ArrayList<>();
+            for(String nombre : nombres)
+                atributos.add(new AttributeNode(visibility, tipo, nombre));
+            return atributos;
         }
         else {
             error(PRPUB, IDCLASSSTR, IDCLASSBOOL, IDCLASSINT);
+            return null;
         }
     }
-    void metodo(){  //	fn, st
+    MethodNode metodo(){  //	fn, st
+        boolean isStatic = false;
         if (lookahead.getTokenName() == PRFN) {
             match(PRFN);
-            metodoF();
+            return metodoF(isStatic);
         }
         else if(lookahead.getTokenName() == PRST ) {
-            formaMétodo();
+            isStatic = formaMetodo();
             match(PRFN);
-            metodoF();
+            return metodoF(isStatic);
         }
         else {
             error(PRFN, PRST);
+            return null;
         }
     }
-    void metodoF(){ //	objectID, void, Str, Bool,Int, idclass, Array
-        if (lookahead.getTokenName() == IDCLASSOBJECT) {
-            match(IDCLASSOBJECT);
-            argumentoFormal();
-            bloqueMetodo();
+    MethodNode metodoF(boolean isStatic){ //	objectID, void, Str, Bool,Int, idclass, Array
+        TypeNode returnType = null;
+        if (lookahead.getTokenName() == IDMETAT) {
+            String name = lookahead.getLexeme();
+            match(IDMETAT);
+            List<FormalParameterNode> parameters = argumentosFormales();
+            BlockNode body = bloqueMetodo();
+            return new MethodNode(name, returnType, parameters, body, isStatic);
         }
-        else if (lookahead.getTokenName() == PRVOID || lookahead.getTokenName() == IDCLASSSTR || lookahead.getTokenName() == IDCLASSBOOL || lookahead.getTokenName() == IDCLASSINT || lookahead.getTokenName() == IDCLASSARRAY || lookahead.getTokenName() == IDCLASS) {
-            tipoMétodo();
-            match(IDCLASSOBJECT);
-            argumentoFormal();
-            bloqueMetodo();
+        else if (lookahead.getTokenName() == PRVOID || lookahead.getTokenName() == IDCLASSSTR || lookahead.getTokenName() == IDCLASSBOOL || lookahead.getTokenName() == IDCLASSINT || lookahead.getTokenName() == IDCLASSARRAY || lookahead.getTokenName() == IDCLASS || lookahead.getTokenName() == IDCLASSIO) {
+            returnType = tipoMetodo();
+            String name = lookahead.getLexeme();
+            match(IDMETAT);
+            List<FormalParameterNode> parameters = argumentosFormales();
+            BlockNode body = bloqueMetodo();
+            return new MethodNode(name, returnType, parameters, body, isStatic);
         }
         else {
-            error(IDCLASSOBJECT, PRVOID, IDCLASSSTR, IDCLASSBOOL, IDCLASSINT, IDCLASSARRAY, IDCLASS);
+            error(IDMETAT, PRVOID, IDCLASSSTR, IDCLASSBOOL, IDCLASSINT, IDCLASSARRAY, IDCLASS, IDCLASSIO);
+            return null;
         }
     }
-    void visibilidad(){  //	pub
+    VisibilityNode visibilidad(){  //	pub
         match(PRPUB);
+        return new VisibilityNode("pub");
     }
-    void formaMétodo(){ //	st
+    Boolean formaMetodo(){ //	st
         match(PRST);
+        return true;
     }
-    void bloqueMetodo(){  //	llaveAbre
+    BlockNode bloqueMetodo(){  //	llaveAbre
         match(LLAVEABRE);
-        declVarLocalesIt();
-        sentenciaIt();
+        List<VariableDeclarationNode> variables = declVarLocalesIt();
+        List<SentenceNode> statements = sentenciaIt();
         match(LLAVECIERRA);
+        return new BlockNode(variables, statements);
     }
+    //incorporacion IDMETAT en el lookahead para que reconozca variables locales
+    List<VariableDeclarationNode> declVarLocalesIt() {
+        List<VariableDeclarationNode> variables = new ArrayList<>();
+        if(lookahead.getTokenName() == IDCLASSSTR || lookahead.getTokenName() == IDCLASSBOOL || lookahead.getTokenName() == IDCLASSINT || lookahead.getTokenName() == IDCLASS || lookahead.getTokenName() == IDCLASSARRAY || lookahead.getTokenName() == IDCLASSIO ) {
+            while (lookahead.getTokenName() == IDCLASSSTR || lookahead.getTokenName() == IDCLASSBOOL || lookahead.getTokenName() == IDCLASSINT || lookahead.getTokenName() == IDCLASS || lookahead.getTokenName() == IDCLASSARRAY || lookahead.getTokenName() == IDCLASSIO ) {
+                TypeNode tipo = tipo();
+                List<String> nombres = (listaDeclaracionVariables());
+                match(PUNTOYCOMA);
+                for(String nombre : nombres)
+                    variables.add(new VariableDeclarationNode(tipo, nombre));
+            }
+            return variables;
+        }
+        else if (lookahead.getTokenName() == PUNTOYCOMA || lookahead.getTokenName() == IDMETAT || lookahead.getTokenName() == PRIF || lookahead.getTokenName() == PRELSE || lookahead.getTokenName() == PRWHILE || lookahead.getTokenName() == PRFOR || lookahead.getTokenName() == PRRET || lookahead.getTokenName() == PRSELF || lookahead.getTokenName() == PARABRE || lookahead.getTokenName() == LLAVEABRE) {
+            return variables;
+            // lambda LE FALTA ID SOLO arriba en los OR
+        }
+        else {
+            error(IDCLASSSTR, IDCLASSBOOL, IDCLASSINT, IDCLASS, IDCLASSARRAY, PUNTOYCOMA, IDMETAT, PRIF, PRELSE, PRWHILE, PRFOR, PRRET, PRSELF, PARABRE, LLAVEABRE, IDCLASSIO);
+            return null;
+        }
+    }
+    /*OLD IMPLEMENTATION
     void declVarLocalesIt(){ 	//Str, Bool,Int, idclass, Array
         if (lookahead.getTokenName() == IDCLASSSTR || lookahead.getTokenName() == IDCLASSBOOL || lookahead.getTokenName() == IDCLASSINT || lookahead.getTokenName() == IDCLASS || lookahead.getTokenName() == IDCLASSARRAY) {
             declVarLocales();
             declVarLocalesIt();
         }
-        else if (lookahead.getTokenName() == PUNTOYCOMA || lookahead.getTokenName() == IDCLASSOBJECT || lookahead.getTokenName() == PRIF || lookahead.getTokenName() == PRELSE || lookahead.getTokenName() == PRWHILE || lookahead.getTokenName() == PRFOR || lookahead.getTokenName() == PRRET || lookahead.getTokenName() == PRSELF || lookahead.getTokenName() == PARABRE || lookahead.getTokenName() == LLAVEABRE) {
+        else if (lookahead.getTokenName() == PUNTOYCOMA || lookahead.getTokenName() == IDMETAT || lookahead.getTokenName() == PRIF || lookahead.getTokenName() == PRELSE || lookahead.getTokenName() == PRWHILE || lookahead.getTokenName() == PRFOR || lookahead.getTokenName() == PRRET || lookahead.getTokenName() == PRSELF || lookahead.getTokenName() == PARABRE || lookahead.getTokenName() == LLAVEABRE) {
             // lambda LE FALTA ID SOLO arriba en los OR
         }
         else {
-            error(IDCLASSSTR, IDCLASSBOOL, IDCLASSINT, IDCLASS, IDCLASSARRAY, PUNTOYCOMA, IDCLASSOBJECT, PRIF, PRELSE, PRWHILE, PRFOR, PRRET, PRSELF, PARABRE, LLAVEABRE);
+            error(IDCLASSSTR, IDCLASSBOOL, IDCLASSINT, IDCLASS, IDCLASSARRAY, PUNTOYCOMA, IDMETAT, PRIF, PRELSE, PRWHILE, PRFOR, PRRET, PRSELF, PARABRE, LLAVEABRE);
         }
     }
     void declVarLocales(){ //	Str, Bool,Int, idclass, Array
         tipo();
-        listaDeclaraciónVariables();
+        listaDeclaracionVariables();
         match(PUNTOYCOMA);
     }
-    void listaDeclaraciónVariables(){ //	idMetAt
+     */
+    List<String> listaDeclaracionVariables() { 	//	idMetAt
+        List<String> names = new ArrayList<>();
+        names.add(lookahead.getLexeme());
         match(IDMETAT);
-        listaDeclaraciónVariablesF();
+        //variables.add(new VariableDeclarationNode(type, name));
+        while(lookahead.getTokenName() == COMA) {
+            match(COMA);
+            names.add(lookahead.getLexeme());
+            match(IDMETAT);
+            //variables.add(new VariableDeclarationNode(type, name2));
+        }
+        /*
+        if (lookahead.getTokenName() == PUNTOYCOMA) {
+            return variables;
+            // lambda
+        }
+        else {
+            error(COMA, PUNTOYCOMA);
+            return null;
+        }*/
+        return names;
     }
-    void listaDeclaraciónVariablesF(){ //	coma
+
+    /* OLD IMPLEMENTATION
+    void listaDeclaracionVariables(){ //	idMetAt
+
+        String name = lookahead.getLexeme();
+        match(IDMETAT);
+        listaDeclaracionVariablesF();
+    }
+    void listaDeclaracionVariablesF(){ //	coma
         if(lookahead.getTokenName() == COMA) {
             match(COMA);
-            listaDeclaraciónVariables();
+            listaDeclaracionVariables();
         }
-        else if (lookaheadSig.getTokenName() == PUNTOYCOMA) {
+        else if (lookahead.getTokenName() == PUNTOYCOMA) {
             // lambda
         }
         else {
             error(COMA, PUNTOYCOMA);
         }
-    }
-    void argumentosFormales(){ //	parAbre
+    }*/
+    List<FormalParameterNode> argumentosFormales(){ //	parAbre
         match(PARABRE);
-        argumentosFormalesF();
+        return argumentosFormalesF();
     }
-    void argumentosFormalesF(){ 	//parCierra, Str, Bool,Int, idclass, Array
-        if (lookahead.getTokenName() == IDCLASSSTR || lookahead.getTokenName() == IDCLASSBOOL || lookahead.getTokenName() == IDCLASSINT || lookahead.getTokenName() == IDCLASS || lookahead.getTokenName() == IDCLASSARRAY || lookahead.getTokenName() == IDCLASS) {
-            listaArgumentosFormales();
+    List<FormalParameterNode> argumentosFormalesF(){ 	//parCierra, Str, Bool,Int, idclass, Array
+        List<FormalParameterNode> argumentos = new ArrayList<>();
+        if (lookahead.getTokenName() == IDCLASSSTR || lookahead.getTokenName() == IDCLASSBOOL || lookahead.getTokenName() == IDCLASSINT || lookahead.getTokenName() == IDCLASSARRAY || lookahead.getTokenName() == IDCLASS || lookahead.getTokenName() == IDCLASSIO) {
+            argumentos = listaArgumentosFormales();
             match(PARCIERRA);
         }
         else if (lookahead.getTokenName() == PARCIERRA) {
@@ -244,13 +388,36 @@ public class SintaxAnalyzer {
         else {
             error(IDCLASSSTR, IDCLASSBOOL, IDCLASSINT, IDCLASS, IDCLASSARRAY, PARCIERRA);
         }
+        return argumentos;
     }
-    void listaArgumentosFormales(){  //	Str, Bool,Int, idclass, Array
+    List<FormalParameterNode> listaArgumentosFormales() {
+        if (lookahead.getTokenName() != IDCLASSSTR && lookahead.getTokenName() != IDCLASSBOOL && lookahead.getTokenName() != IDCLASSINT && lookahead.getTokenName() != IDCLASS && lookahead.getTokenName() != IDCLASSARRAY && lookahead.getTokenName() != IDCLASSIO) {
+            error(IDCLASSSTR, IDCLASSBOOL, IDCLASSINT, IDCLASS, IDCLASSARRAY, IDCLASSIO);
+            return null;
+        }
+        List<FormalParameterNode> argumentos = new ArrayList<>();
+        argumentos.add(argumentoFormal());
+        while (lookahead.getTokenName() == COMA) {
+            match(COMA);
+            argumentos.add(argumentoFormal());
+        }
+        if (lookahead.getTokenName() != PARCIERRA) {
+            error(PARCIERRA);
+        }
+        return argumentos;
+    }
+
+
+    /* OLD IMPLEMENTATION with Recursion
+    List<FormalParameterNode> listaArgumentosFormales(){  //	Str, Bool,Int, idclass, Array
         if (lookahead.getTokenName() == IDCLASSSTR || lookahead.getTokenName() == IDCLASSBOOL || lookahead.getTokenName() == IDCLASSINT || lookahead.getTokenName() == IDCLASS || lookahead.getTokenName() == IDCLASSARRAY || lookahead.getTokenName() == IDCLASS) {
-            argumentoFormal();
+            List<FormalParameterNode> argumentos = new ArrayList<>();
+            argumentos.add(argumentoFormal());
             listaArgumentosFormalesF();
+            return argumentos;
         }else {
             error(IDCLASSSTR, IDCLASSBOOL, IDCLASSINT, IDCLASS, IDCLASSARRAY, IDCLASS);
+            return null;
         }
 
     }
@@ -266,60 +433,91 @@ public class SintaxAnalyzer {
             error(COMA,PARCIERRA);
         }
     }
-    void argumentoFormal(){  //	Str, Bool,Int, idclass, Array
-        tipo();
+    */
+    FormalParameterNode argumentoFormal(){  //	Str, Bool,Int, idclass, Array
+        TypeNode tipo = tipo();
+        String nombre = lookahead.getLexeme();
         match(IDMETAT);
+        return new FormalParameterNode(tipo,nombre);
     }
-    void tipoMétodo(){  //	void, Str, Bool,Int, idclass, Array
+    TypeNode tipoMetodo(){  //	void, Str, Bool,Int, idclass, Array
         if(lookahead.getTokenName() == PRVOID) {
             match(PRVOID);
+            return new VoidTypeNode();
         }
         else if (lookahead.getTokenName() == IDCLASSSTR || lookahead.getTokenName() == IDCLASSBOOL || lookahead.getTokenName() == IDCLASSINT || lookahead.getTokenName() == IDCLASS || lookahead.getTokenName() == IDCLASSARRAY) {
-            tipo();
+            return tipo();
         }
         else {
             error(PRVOID, IDCLASSSTR, IDCLASSBOOL, IDCLASSINT, IDCLASS, IDCLASSARRAY);
+            return null;
         }
     }
-    void tipo() {  //	Str, Bool,Int, idclass, Array
+    TypeNode tipo() {  //	Str, Bool,Int, idclass, Array
         if (lookahead.getTokenName() == IDCLASSSTR || lookahead.getTokenName() == IDCLASSBOOL || lookahead.getTokenName() == IDCLASSINT) {
-            tipoPrimitivo();
-        } else if (lookahead.getTokenName() == IDCLASS) {
-            tipoReferencia();
+            return tipoPrimitivo();
+        } else if (lookahead.getTokenName() == IDCLASS || lookahead.getTokenName() == IDCLASSIO) {
+            return tipoReferencia();
         } else if (lookahead.getTokenName() == IDCLASSARRAY) {
-            tipoArreglo();
+            return tipoArreglo();
         } else {
             error(IDCLASSSTR, IDCLASSBOOL, IDCLASSINT, IDCLASS, IDCLASSARRAY);
+            return null;
         }
     }
-    void tipoPrimitivo(){  //	Str, Bool, Int
+    TypeNode tipoPrimitivo(){  //	Str, Bool, Int
         switch (lookahead.getTokenName()) {
             case IDCLASSSTR:
                 match(IDCLASSSTR);
-                break;
+                return new PrimitiveTypeNode("str");
             case IDCLASSBOOL:
                 match(IDCLASSBOOL);
-                break;
+                return new PrimitiveTypeNode("bool");
             case IDCLASSINT:
                 match(IDCLASSINT);
-                break;
+                return new PrimitiveTypeNode("int");
             default:
                 error(IDCLASSSTR, IDCLASSBOOL, IDCLASSINT);
+                return null; // This line will never be reached due to the error() call, but it's needed to satisfy the compiler.
         }
     }
-    void tipoReferencia(){  //	idclass
-        match(IDCLASS);
+    TypeNode tipoReferencia(){  //	idclass
+        if (lookahead.getTokenName() == IDCLASSIO) {
+            match(IDCLASSIO);
+            return new ReferenceTypeNode("io");
+        }else{
+            match(IDCLASS);
+            return new ReferenceTypeNode(lookahead.getLexeme());
+        }
     }
-    void tipoArreglo(){  //	Array
+    TypeNode tipoArreglo(){  //	Array
         match(IDCLASSARRAY);
-        tipoPrimitivo();
+        return new ArrayTypeNode(tipoPrimitivo());
     }
+
+    List<SentenceNode> sentenciaIt(){
+        List<SentenceNode> sentences = new ArrayList<>();
+        while(lookahead.getTokenName() == PUNTOYCOMA || lookahead.getTokenName() == PRIF || lookahead.getTokenName() == PRELSE || lookahead.getTokenName() == PRWHILE || lookahead.getTokenName() == PRFOR || lookahead.getTokenName() == PRRET || lookahead.getTokenName() == PRSELF || lookahead.getTokenName() == PARABRE || lookahead.getTokenName() == LLAVEABRE || lookahead.getTokenName() == IDMETAT){
+            sentences.add(sentencia());
+        }
+        if (lookahead.getTokenName() == LLAVECIERRA) {
+            return sentences;
+            // lambda
+        }
+        else {
+            error(PUNTOYCOMA, PRIF, PRELSE, PRWHILE, PRFOR, PRRET, PRSELF, PARABRE, LLAVEABRE, LLAVECIERRA, IDMETAT);
+            return null;
+        }
+    } 	//puntoYcoma, if,else,while,for, ret, id, self, parAbre, llaveAbre
+
+    /*
     void sentenciaIt(){ 	//puntoYcoma, if,else,while,for, ret, id, self, parAbre, llaveAbre
+
         if(lookahead.getTokenName() == PUNTOYCOMA || lookahead.getTokenName() == PRIF || lookahead.getTokenName() == PRELSE || lookahead.getTokenName() == PRWHILE || lookahead.getTokenName() == PRFOR || lookahead.getTokenName() == PRRET || lookahead.getTokenName() == PRSELF || lookahead.getTokenName() == PARABRE || lookahead.getTokenName() == LLAVEABRE) {
             sentencia();
             sentenciaIt();
         }
-        else if (lookaheadSig.getTokenName() == LLAVECIERRA) {
+        else if (lookahead.getTokenName() == LLAVECIERRA) {
             //match(LLAVECIERRA); no se si va a chequear
             // lambda
         }
@@ -327,122 +525,168 @@ public class SintaxAnalyzer {
             error(PUNTOYCOMA, PRIF, PRELSE, PRWHILE, PRFOR, PRRET, PRSELF, PARABRE, LLAVEABRE, LLAVECIERRA);
         }
     }
-    void sentencia(){  //	puntoYcoma, if,while,for, ret, id, self, parAbre, llaveAbre
+    */
+    SentenceNode sentencia(){  //	puntoYcoma, if,while,for, ret, id, self, parAbre, llaveAbre
         switch (lookahead.getTokenName()) {
             case PUNTOYCOMA:
                 match(PUNTOYCOMA);
                 break;
             case PRSELF:
-                asignacion();
-                break;
+                return asignacion();
             case IDCLASS: //o IDMETAT no se????
-                asignacion();
-                break;
+            case IDMETAT:
+                return asignacion();
             case PARABRE:
-                sentenciaSimple();
+                SentenceNode sent = sentenciaSimple();
                 match(PUNTOYCOMA);
-                break;
+                return sent;
             case PRIF:
                 match(PRIF);
                 match(PARABRE);
-                expresion();
+                ExpresionNode exp = expresion();
                 match(PARCIERRA);
-                sentencia();
-                sentenciaIF();
-                break;
+                SentenceNode sent2 = sentencia();
+                //sentenciaIF();
+                return new IfNode(exp, sent2, sentenciaIF());
             case PRWHILE:
                 match(PRWHILE);
                 match(PARABRE);
-                expresion();
+                ExpresionNode exp2 = expresion();
                 match(PARCIERRA);
-                sentencia();
-                break;
+                return new WhileNode(exp2, sentencia());
             case PRFOR:
+                //modificacion para usar nodos de variables
                 match(PRFOR);
                 match(PARABRE);
-                tipoPrimitivo();
+                TypeNode type = tipoPrimitivo();
+                String varName = lookahead.getLexeme();
+                VariableDeclarationNode varDecNode = new VariableDeclarationNode(type, varName);
                 match(IDMETAT);
                 match(PRIN);
+                String iterableName = lookahead.getLexeme();
+                VarNode iterable = new VarNode(iterableName);
                 match(IDMETAT);
                 match(PARCIERRA);
-                sentencia();
-                break;
+                SentenceNode body = sentencia();
+                return new ForNode(varDecNode,iterable, body);
             case PRRET:
                 match(PRRET);
-                sentenciaRet();
-                break;
+                return sentenciaRet();
             case LLAVEABRE:
-                bloque();
-                break;
+                return bloque();
             default:
                 error(PUNTOYCOMA, PRIF, PRWHILE, PRFOR, PRRET, IDCLASS, PRSELF, PARABRE, LLAVEABRE);
+                return null;
         }
+        return null;
     }
-    void sentenciaIF(){ 	//else
+    SentenceNode sentenciaIF(){ 	//else
         if (lookahead.getTokenName() == PRELSE) {
             match(PRELSE);
-            sentencia();
+            return sentencia();
         }
-        else if (lookaheadSig.getTokenName() == PUNTOYCOMA || lookaheadSig.getTokenName() == IDCLASSOBJECT || lookaheadSig.getTokenName() == PRIF || lookaheadSig.getTokenName() == PRELSE || lookaheadSig.getTokenName() == PRWHILE || lookaheadSig.getTokenName() == PRFOR || lookaheadSig.getTokenName() == PRRET || lookaheadSig.getTokenName() == PRSELF || lookaheadSig.getTokenName() == PARABRE || lookaheadSig.getTokenName() == LLAVEABRE || lookaheadSig.getTokenName() == IDCLASSSTR || lookaheadSig.getTokenName() == IDCLASSBOOL || lookaheadSig.getTokenName() == IDCLASSINT || lookaheadSig.getTokenName() == IDCLASSARRAY) {
+        else if (lookahead.getTokenName() == PUNTOYCOMA || lookahead.getTokenName() == IDMETAT || lookahead.getTokenName() == PRIF || lookahead.getTokenName() == PRWHILE || lookahead.getTokenName() == PRFOR || lookahead.getTokenName() == PRRET || lookahead.getTokenName() == PRSELF || lookahead.getTokenName() == PARABRE || lookahead.getTokenName() == LLAVEABRE || lookahead.getTokenName() == IDCLASSSTR || lookahead.getTokenName() == IDCLASSBOOL || lookahead.getTokenName() == IDCLASSINT || lookahead.getTokenName() == IDCLASSARRAY) {
+            return null;
             // lambda
         }
         else {
-            error(PRELSE, PUNTOYCOMA, IDCLASSOBJECT, PRIF, PRWHILE, PRFOR, PRRET, PRSELF, PARABRE, LLAVEABRE, IDCLASSSTR, IDCLASSBOOL, IDCLASSINT, IDCLASSARRAY);
+            error(PRELSE, PUNTOYCOMA, IDMETAT, PRIF, PRWHILE, PRFOR, PRRET, PRSELF, PARABRE, LLAVEABRE, IDCLASSSTR, IDCLASSBOOL, IDCLASSINT, IDCLASSARRAY);
+            return null;
         }
     }
-    void sentenciaRet(){ //	puntoYcoma, =+,-, !,++,--, (Int), nil, true, false, intLiteral, StrLiteral, parAbre, self, id, idclass, new
+    SentenceNode sentenciaRet(){ //	puntoYcoma, =+,-, !,++,--, (Int), nil, true, false, intLiteral, StrLiteral, parAbre, self, id, idclass, new
         if (lookahead.getTokenName() == PUNTOYCOMA) {
             match(PUNTOYCOMA);
+            return null;
         }
-        else if (lookahead.getTokenName() == OPASIGNSUMA || lookahead.getTokenName() == OPRESTA || lookahead.getTokenName() == OPDISTINTO || lookahead.getTokenName() == OPINCR || lookahead.getTokenName() == OPDECR || lookahead.getTokenName() == IDCLASSINT || lookahead.getTokenName() == PRNIL || lookahead.getTokenName() == PRTRUE || lookahead.getTokenName() == PRFALSE || lookahead.getTokenName() == LITINT || lookahead.getTokenName() == LITSTR || lookahead.getTokenName() == PARABRE || lookahead.getTokenName() == PRSELF || lookahead.getTokenName() == IDCLASS || lookahead.getTokenName() == IDMETAT || lookahead.getTokenName() == PRNEW) {
-            expresion();
+        else if (lookahead.getTokenName() == OPASIGNSUMA || lookahead.getTokenName() == OPSUMA || lookahead.getTokenName() == OPRESTA || lookahead.getTokenName() == OPDISTINTO || lookahead.getTokenName() == OPINCR || lookahead.getTokenName() == OPDECR || lookahead.getTokenName() == IDCLASSINT || lookahead.getTokenName() == PRNIL || lookahead.getTokenName() == PRTRUE || lookahead.getTokenName() == PRFALSE || lookahead.getTokenName() == LITINT || lookahead.getTokenName() == LITSTR || lookahead.getTokenName() == PARABRE || lookahead.getTokenName() == PRSELF || lookahead.getTokenName() == IDCLASS || lookahead.getTokenName() == IDMETAT || lookahead.getTokenName() == PRNEW) {
+            ExpresionNode exp = expresion();
             match(PUNTOYCOMA);
+            return new RetNode(NodeType.ReturnNode,"return",exp);
         }
         else {
             error(PUNTOYCOMA, OPASIGNSUMA, OPRESTA, OPDISTINTO, OPINCR, OPDECR, IDCLASSINT, PRNIL, PRTRUE, PRFALSE, LITINT, LITSTR, PARABRE, PRSELF, IDCLASS, IDMETAT, PRNEW);
+            return null;
         }
     }
-    void bloque(){  //	llaveAbre
+    SentenceNode bloque(){  //	llaveAbre
         match(LLAVEABRE);
-        sentenciaIt();
+        List<SentenceNode> sent = sentenciaIt();
         match(LLAVECIERRA);
+        return new BlockNode(sent);
     }
-    void asignacion(){  //	id, self
+    SentenceNode asignacion(){  //	id, self
         if (lookahead.getTokenName() == PRSELF) {
-            accesoSelfSimple();
-            match(OPIGUAL);
-            expresion();
+            ExpresionNode var = accesoSelfSimple();
+            match(OPASIGN);
+            ExpresionNode exp = expresion();
+            return new AssigNode(var, exp);
         }
-        else if (lookahead.getTokenName() == IDCLASS) {
-           accesoVarSimple();
-           match(OPIGUAL);
-           expresion();
+        else if (lookahead.getTokenName() == IDCLASS || lookahead.getTokenName() == IDMETAT) {
+           ExpresionNode var = accesoVarSimple();
+           match(OPASIGN);
+           ExpresionNode exp = expresion();
+          return new AssigNode(var, exp);
         }
         else {
-            error(PRSELF, IDCLASS);
+            error(PRSELF, IDCLASS, IDMETAT);
+            return null;
         }
     }
-    void accesoVarSimple(){  //	id
-        match(IDCLASS);
-        accesoVarSimpleF();
+    ExpresionNode accesoVarSimple(){  //	id es solo IDMETAT o tambien IDCLASS????
+        String name = lookahead.getLexeme();
+        if (lookahead.getTokenName() == IDCLASS) {
+            match(IDCLASS);
+        }else if (lookahead.getTokenName() == IDMETAT) {
+            match(IDMETAT);
+        }
+        VarNode var = new VarNode(name);
+        return accesoVarSimpleF(var);
     }
-    void accesoVarSimpleF(){ 	//corAbre, punto
+    ExpresionNode accesoVarSimpleF(ExpresionNode parent){ 	//corAbre, punto
         if (lookahead.getTokenName() == CORABRE) {
             match(CORABRE);
-            expresion();
+            ExpresionNode index = expresion();
             match(CORCIERRA);
+            ArrayAccessNode array = new ArrayAccessNode(parent, index);
+            return accesoVarSimpleF(array);
         }
         else if (lookahead.getTokenName() == PUNTO) {
-            encadenadoSimpleIt();
+            return encadenadoSimpleIt(parent);
+        } else if (lookahead.getTokenName() == OPASIGN) {
+            return parent;
+            // lambda
+        } else {
+            error(CORABRE, PUNTO, OPASIGN);
+            return null;
+        }
+    }
+    ExpresionNode accesoSelfSimple(){  //	self,
+        match(PRSELF);
+        SelfNode selfNode = new SelfNode();
+        return encadenadoSimpleIt(selfNode);
+    }
+    ExpresionNode encadenadoSimpleIt(ExpresionNode parent) {
+        while (lookahead.getTokenName() == PUNTO) {
+            parent = encadenadoSimple(parent);
+        }
+        if (lookahead.getTokenName() == OPIGUAL) {
+            return parent;
+            // lambda
         }
         else {
-            error(CORABRE, PUNTO);
+            error(PUNTO, OPIGUAL);
+            return null;
         }
     }
-    void accesoSelfSimple(){  //	self,
-        match(PRSELF);
-        encadenadoSimpleIt();
+    ExpresionNode encadenadoSimple(ExpresionNode parent){
+        match(PUNTO);
+        String name = lookahead.getLexeme();
+        match(IDMETAT);
+        return new FieldAccessNode(parent, name);
     }
+
+    /* OLD IMPLEMENTATION
     void encadenadoSimpleIt(){ 	//punto
         if(lookahead.getTokenName() == PUNTO) {
             encadenadoSimple();
@@ -459,377 +703,509 @@ public class SintaxAnalyzer {
         match(PUNTO);
         match(IDMETAT);
     }
-    void sentenciaSimple(){  //	parAbre
+    */
+    SentenceNode sentenciaSimple(){  //	parAbre
         match(PARABRE);
-        expresion();
+        ExpresionNode exp = expresion();
         match(PARCIERRA);
+        return new SimpleSentenceNode(exp);
     }
-    void expresion(){  //	=+,-, !,++,--, (Int), nil, true, false, intLiteral, StrLiteral, parAbre, self, id, idclass, new
-        if(lookahead.getTokenName() == OPASIGNSUMA || lookahead.getTokenName() == OPRESTA || lookahead.getTokenName() == OPDISTINTO || lookahead.getTokenName() == OPINCR || lookahead.getTokenName() == OPDECR || lookahead.getTokenName() == IDCLASSINT || lookahead.getTokenName() == PRNIL || lookahead.getTokenName() == PRTRUE || lookahead.getTokenName() == PRFALSE || lookahead.getTokenName() == LITINT || lookahead.getTokenName() == LITSTR || lookahead.getTokenName() == PARABRE || lookahead.getTokenName() == PRSELF || lookahead.getTokenName() == IDCLASS || lookahead.getTokenName() == IDMETAT || lookahead.getTokenName() == PRNEW) {
-            expOr();
+
+    ExpresionNode expresion(){  //	=+,-, !,++,--, (Int), nil, true, false, intLiteral, StrLiteral, parAbre, self, id, idclass, new
+        if(lookahead.getTokenName() == OPASIGNSUMA || lookahead.getTokenName() == OPRESTA || lookahead.getTokenName() == OPDISTINTO || lookahead.getTokenName() == OPINCR || lookahead.getTokenName() == OPDECR || lookahead.getTokenName() == IDCLASSINT || lookahead.getTokenName() == PRNIL || lookahead.getTokenName() == PRTRUE || lookahead.getTokenName() == PRFALSE || lookahead.getTokenName() == LITINT || lookahead.getTokenName() == LITSTR || lookahead.getTokenName() == PARABRE || lookahead.getTokenName() == PRSELF || lookahead.getTokenName() == IDCLASS || lookahead.getTokenName() == IDCLASSIO || lookahead.getTokenName() == IDMETAT || lookahead.getTokenName() == PRNEW) {
+            return expOr();
         }
         else {
-            error(OPASIGNSUMA, OPRESTA, OPDISTINTO, OPINCR, OPDECR, IDCLASSINT, PRNIL, PRTRUE, PRFALSE, LITINT, LITSTR, PARABRE, PRSELF, IDCLASS, IDMETAT, PRNEW);
+            error(OPASIGNSUMA, OPRESTA, OPDISTINTO, OPINCR, OPDECR, IDCLASSINT, PRNIL, PRTRUE, PRFALSE, LITINT, LITSTR, PARABRE, PRSELF, IDCLASS, IDMETAT, PRNEW,IDCLASSIO);
+            return null;
         }
     }
-    void expOr (){  //	=+,-, !,++,--, (Int), nil, true, false, intLiteral, StrLiteral, parAbre, self, id, idclass, new
-        expAnd();
-        expOr2();
+    ExpresionNode expOr (){  //	=+,-, !,++,--, (Int), nil, true, false, intLiteral, StrLiteral, parAbre, self, id, idclass, new
+        ExpresionNode left = expAnd();
+        return expOr2(left);
     }
-    void expOr2(){ 	//opOR
+    ExpresionNode expOr2(ExpresionNode left){ 	//opOR
         if (lookahead.getTokenName() == OPOR) {
             match(OPOR);
-            expAnd();
-            expOr2();
+            ExpresionNode right = expAnd();
+            OrNode nuevo = new OrNode(
+                    left,
+                    right
+            );
+            return expOr2(nuevo);
         }
         else if (lookahead.getTokenName() == PUNTOYCOMA || lookahead.getTokenName() == PARCIERRA || lookahead.getTokenName() == IDMETAT || lookahead.getTokenName() == PRSELF || lookahead.getTokenName() == CORCIERRA || lookahead.getTokenName() == COMA ) {
-            // lambda
+            return left;
         }
         else {
             error(OPOR, PUNTOYCOMA, PARCIERRA, IDMETAT, PRSELF, CORCIERRA, COMA);
+            return null;
         }
     }
-    void expAnd(){  //	=+,-, !,++,--, (Int), nil, true, false, intLiteral, StrLiteral, parAbre, self, id, idclass, new
-        expIgual();
-        expAnd2();
+    ExpresionNode expAnd(){  //	=+,-, !,++,--, (Int), nil, true, false, intLiteral, StrLiteral, parAbre, self, id, idclass, new
+        ExpresionNode left = expIgual();
+        return expAnd2(left);
     }
-    void expAnd2(){ 	//opAND
+    ExpresionNode expAnd2(ExpresionNode left){ 	//opAND
         if (lookahead.getTokenName() == OPAND) {
             match(OPAND);
-            expIgual();
-            expAnd2();
+            ExpresionNode right = expIgual();
+            AndNode nuevo = new AndNode(
+                    left,
+                    right
+            );
+            return expAnd2(nuevo);
         }
         else if (lookahead.getTokenName() == PUNTOYCOMA || lookahead.getTokenName() == PARCIERRA || lookahead.getTokenName() == IDMETAT || lookahead.getTokenName() == PRSELF || lookahead.getTokenName() == CORCIERRA || lookahead.getTokenName() == COMA || lookahead.getTokenName() == OPOR) {
             // lambda
+            return left;
         }
         else {
             error(OPAND, PUNTOYCOMA, PARCIERRA, IDMETAT, PRSELF, CORCIERRA, COMA, OPOR);
+            return null;
         }
     }
-    void expIgual(){  //	=+,-, !,++,--, (Int), nil, true, false, intLiteral, StrLiteral, parAbre, self, id, idclass, new
-        expCompuesta();
-        expIgual2();
+    ExpresionNode expIgual(){  //	=+,-, !,++,--, (Int), nil, true, false, intLiteral, StrLiteral, parAbre, self, id, idclass, new
+        ExpresionNode left = expCompuesta();
+        return expIgual2(left);
     }
-    void expIgual2(){ 	//==, !=
+    ExpresionNode expIgual2(ExpresionNode left){ 	//==, !=
         if(lookahead.getTokenName() == OPIGUAL || lookahead.getTokenName() == OPDISTINTO) {
-            match(lookahead.getTokenName());
-            expCompuesta();
-            expIgual2();
+            TokenType op = opIgual();
+            ExpresionNode right = expCompuesta();
+            BinaryOperation nuevo = new BinaryOperation(
+                    op,
+                    left,
+                    right
+            );
+            return expIgual2(nuevo);
         }
         else if (lookahead.getTokenName() == PUNTOYCOMA || lookahead.getTokenName() == PARCIERRA || lookahead.getTokenName() == IDMETAT || lookahead.getTokenName() == PRSELF || lookahead.getTokenName() == CORCIERRA || lookahead.getTokenName() == COMA || lookahead.getTokenName() == OPOR || lookahead.getTokenName() == OPAND) {
+            return left;
             // lambda
         }
         else {
             error(OPIGUAL, OPDISTINTO, PUNTOYCOMA, PARCIERRA, IDMETAT, PRSELF, CORCIERRA, COMA, OPOR, OPAND);
-
+            return null;
         }
     }
-    void expCompuesta(){  //	=+,-, !,++,--, (Int), nil, true, false, intLiteral, StrLiteral, parAbre, self, id, idclass, new
-        expAd();
-        expCompuestaF();
+    ExpresionNode expCompuesta(){  //	=+,-, !,++,--, (Int), nil, true, false, intLiteral, StrLiteral, parAbre, self, id, idclass, new
+        ExpresionNode left = expAdd();
+        return expCompuestaF(left);
     }
-    void expCompuestaF(){ 	//=<, >, <=, <
+    ExpresionNode expCompuestaF(ExpresionNode left){ 	//=<, >, <=, <
         if (lookahead.getTokenName() == OPMAYOR || lookahead.getTokenName() == OPMAYORIGUAL || lookahead.getTokenName() == OPMENOR || lookahead.getTokenName() == OPMENORIGUAL) {
-            match(lookahead.getTokenName());
-            opCompuesto();
-            expAd();
+            TokenType op = opCompuesto();
+            //match(lookahead.getTokenName());
+            ExpresionNode right = expAdd();
+            BinaryOperation nuevo = new BinaryOperation(op, left, right);
+            return expCompuestaF(nuevo);
         }
         else if (lookahead.getTokenName() == PUNTOYCOMA || lookahead.getTokenName() == PARCIERRA || lookahead.getTokenName() == IDMETAT || lookahead.getTokenName() == PRSELF || lookahead.getTokenName() == CORCIERRA || lookahead.getTokenName() == COMA || lookahead.getTokenName() == OPOR || lookahead.getTokenName() == OPAND || lookahead.getTokenName() == OPIGUAL || lookahead.getTokenName() == OPDISTINTO) {
+            return left;
             // lambda
         }
         else {
             error(OPMAYOR, OPMAYORIGUAL, OPMENOR, OPMENORIGUAL, PUNTOYCOMA, PARCIERRA, IDMETAT, PRSELF, CORCIERRA, COMA, OPOR, OPAND, OPIGUAL, OPDISTINTO);
+            return null;
         }
 
     }
-    void expAd(){  //	=+,-, !,++,--, (Int), nil, true, false, intLiteral, StrLiteral, parAbre, self, id, idclass, new
-        expMul();
-        expAd2();
+    ExpresionNode expAdd(){  //	=+,-, !,++,--, (Int), nil, true, false, intLiteral, StrLiteral, parAbre, self, id, idclass, new
+        ExpresionNode left = expMul();
+        return expAdd2(left);
     }
-    void expAd2(){ 	//=+, -
-        if (lookahead.getTokenName() == OPASIGNSUMA || lookahead.getTokenName() == OPRESTA) {
-            opAd();
-            expMul();
-            expAd2();
+    ExpresionNode expAdd2(ExpresionNode left){ 	//=+, -
+        if (lookahead.getTokenName() == OPASIGNSUMA || lookahead.getTokenName() == OPRESTA || lookahead.getTokenName() == OPSUMA) {
+            //TokenType op = lookahead.getTokenName();
+            TokenType op = opAd();
+            ExpresionNode right = expMul();
+            BinaryOperation nuevo =
+                    new BinaryOperation(op, left, right);
+
+            return expAdd2(nuevo);
         }
         else if (lookahead.getTokenName() == PUNTOYCOMA || lookahead.getTokenName() == PARCIERRA || lookahead.getTokenName() == IDMETAT || lookahead.getTokenName() == PRSELF || lookahead.getTokenName() == CORCIERRA || lookahead.getTokenName() == COMA || lookahead.getTokenName() == OPOR || lookahead.getTokenName() == OPAND || lookahead.getTokenName() == OPIGUAL || lookahead.getTokenName() == OPDISTINTO || lookahead.getTokenName() == OPMAYOR || lookahead.getTokenName() == OPMAYORIGUAL || lookahead.getTokenName() == OPMENOR || lookahead.getTokenName() == OPMENORIGUAL ) {
-            // lambda
+            return left;
         }
         else {
             error(OPASIGNSUMA, OPRESTA, PUNTOYCOMA, PARCIERRA, IDMETAT, PRSELF, CORCIERRA, COMA, OPOR, OPAND, OPIGUAL, OPDISTINTO, OPMAYOR, OPMAYORIGUAL, OPMENOR, OPMENORIGUAL);
+            return null;
         }
     }
-    void expMul(){  //	=+,-, !,++,--, (Int), nil, true, false, intLiteral, StrLiteral, parAbre, self, id, idclass, new
-        expUn();
-        expMul2();
+    ExpresionNode expMul(){  //	=+,-, !,++,--, (Int), nil, true, false, intLiteral, StrLiteral, parAbre, self, id, idclass, new
+        ExpresionNode left = expUn();
+        return expMul2(left);
     }
-    void expMul2(){ 	//*, /
+    ExpresionNode expMul2(ExpresionNode left){ 	//*, /
         if (lookahead.getTokenName() == OPMULT || lookahead.getTokenName() == OPDIVENT) {
-            opMul();
-            expUn();
-            expMul2();
+            //TokenType op = lookahead.getTokenName();
+            TokenType op = opMul();
+            ExpresionNode right = expUn();
+            BinaryOperation nuevo =
+                    new BinaryOperation(op, left, right);
+            return expMul2(nuevo);
         }
-        else if (lookahead.getTokenName() == PUNTOYCOMA || lookahead.getTokenName() == PARCIERRA || lookahead.getTokenName() == IDMETAT || lookahead.getTokenName() == PRSELF || lookahead.getTokenName() == CORCIERRA || lookahead.getTokenName() == COMA || lookahead.getTokenName() == OPOR || lookahead.getTokenName() == OPAND || lookahead.getTokenName() == OPIGUAL || lookahead.getTokenName() == OPDISTINTO || lookahead.getTokenName() == OPMAYOR || lookahead.getTokenName() == OPMAYORIGUAL || lookahead.getTokenName() == OPMENOR || lookahead.getTokenName() == OPMENORIGUAL || lookahead.getTokenName() == OPASIGNSUMA || lookahead.getTokenName() == OPRESTA) {
-            // lambda
+        else if (lookahead.getTokenName() == PUNTOYCOMA || lookahead.getTokenName() == PARCIERRA || lookahead.getTokenName() == IDMETAT || lookahead.getTokenName() == PRSELF || lookahead.getTokenName() == CORCIERRA || lookahead.getTokenName() == COMA || lookahead.getTokenName() == OPOR || lookahead.getTokenName() == OPAND || lookahead.getTokenName() == OPIGUAL || lookahead.getTokenName() == OPDISTINTO || lookahead.getTokenName() == OPMAYOR || lookahead.getTokenName() == OPMAYORIGUAL || lookahead.getTokenName() == OPMENOR || lookahead.getTokenName() == OPMENORIGUAL || lookahead.getTokenName() == OPASIGNSUMA || lookahead.getTokenName() == OPRESTA || lookahead.getTokenName() == OPSUMA) {
+            return left;
         }
         else {
             error(OPMULT, OPDIVENT, PUNTOYCOMA, PARCIERRA, IDMETAT, PRSELF, CORCIERRA, COMA, OPOR, OPAND, OPIGUAL, OPDISTINTO, OPMAYOR, OPMAYORIGUAL, OPMENOR, OPMENORIGUAL, OPASIGNSUMA, OPRESTA);
+            return null;
         }
     }
-    void expUn(){  //	=+,-, !,++,--, (Int), nil, true, false, intLiteral, StrLiteral, parAbre, self, id, idclass, new
+    ExpresionNode expUn(){  //	=+,-, !,++,--, (Int), nil, true, false, intLiteral, StrLiteral, parAbre, self, id, idclass, new
         if(lookahead.getTokenName() == OPASIGNSUMA || lookahead.getTokenName() == OPRESTA || lookahead.getTokenName() == OPDISTINTO || lookahead.getTokenName() == OPINCR || lookahead.getTokenName() == OPDECR || lookahead.getTokenName() == IDCLASSINT) {
-            opUnario();
-            expUn();
+            TokenType opUn = opUnario();
+            ExpresionNode expr = expUn();
+            return new UnaryOperation(opUn, expr);
         }
-         else if(lookahead.getTokenName() == PRNIL || lookahead.getTokenName() == PRTRUE || lookahead.getTokenName() == PRFALSE || lookahead.getTokenName() == LITINT || lookahead.getTokenName() == LITSTR || lookahead.getTokenName() == PARABRE || lookahead.getTokenName() == PRSELF || lookahead.getTokenName() == IDCLASS || lookahead.getTokenName() == IDMETAT || lookahead.getTokenName() == PRNEW) {
-            operando();
+         else if(lookahead.getTokenName() == PRNIL || lookahead.getTokenName() == PRTRUE || lookahead.getTokenName() == PRFALSE || lookahead.getTokenName() == LITINT || lookahead.getTokenName() == LITSTR || lookahead.getTokenName() == PARABRE || lookahead.getTokenName() == PRSELF || lookahead.getTokenName() == IDCLASS || lookahead.getTokenName() == IDCLASSIO || lookahead.getTokenName() == IDMETAT || lookahead.getTokenName() == PRNEW) {
+            return operando();
         }
         else {
             error(OPASIGNSUMA, OPRESTA, OPDISTINTO, OPINCR, OPDECR, IDCLASSINT, PRNIL, PRTRUE, PRFALSE, LITINT, LITSTR, PARABRE, PRSELF, IDCLASS, IDMETAT, PRNEW);
+            return null;
         }
     }
-    void opIgual(){ 	//==, !=
+     TokenType opIgual(){ 	//==, !=
         if (lookahead.getTokenName() == OPIGUAL || lookahead.getTokenName() == OPDISTINTO) {
+            TokenType op = lookahead.getTokenName();
             match(lookahead.getTokenName());
+            return op;
         }
         else {
             error(OPIGUAL, OPDISTINTO);
+            return null;
         }
     }
-    void opCompuesto(){ 	//=<, >, <=, <
+     TokenType opCompuesto(){ 	//=<, >, <=, <
         if (lookahead.getTokenName() == OPMAYOR || lookahead.getTokenName() == OPMAYORIGUAL || lookahead.getTokenName() == OPMENOR || lookahead.getTokenName() == OPMENORIGUAL) {
+            TokenType op = lookahead.getTokenName();
             match(lookahead.getTokenName());
+            return op;
         }
         else {
             error(OPMAYOR, OPMAYORIGUAL, OPMENOR, OPMENORIGUAL);
+            return null;
         }
     }
-    void opAd(){  //	=+, -
-        if (lookahead.getTokenName() == OPASIGNSUMA || lookahead.getTokenName() == OPRESTA) {
+    TokenType opAd(){  //	=+, -
+        if (lookahead.getTokenName() == OPASIGNSUMA || lookahead.getTokenName() == OPRESTA || lookahead.getTokenName() == OPSUMA) {
+            TokenType op = lookahead.getTokenName();
             match(lookahead.getTokenName());
+            return op;
         }
         else {
-            error(OPASIGNSUMA, OPRESTA);
+            error(OPASIGNSUMA, OPRESTA, OPSUMA);
+            return null;
         }
     }
-    void opUnario(){ 	//=+,-, !,++,--, (Int)
+    TokenType opUnario(){ 	//=+,-, !,++,--, (Int)
         if (lookahead.getTokenName() == OPASIGNSUMA || lookahead.getTokenName() == OPRESTA || lookahead.getTokenName() == OPDISTINTO || lookahead.getTokenName() == OPINCR || lookahead.getTokenName() == OPDECR || lookahead.getTokenName() == IDCLASSINT) {
+            TokenType operator = lookahead.getTokenName();
             match(lookahead.getTokenName());
+            return operator;
         }
         else {
             error(OPASIGNSUMA, OPRESTA, OPDISTINTO, OPINCR, OPDECR, IDCLASSINT);
+            return null;
         }
     }
-    void opMul(){  //	*, /
+    TokenType opMul(){  //	*, /
         if (lookahead.getTokenName() == OPMULT || lookahead.getTokenName() == OPDIVENT) {
+            TokenType op = lookahead.getTokenName();
             match(lookahead.getTokenName());
+            return op;
         }
         else {
             error(OPMULT, OPDIVENT);
+            return null;
         }
     }
-    void operando(){ //	nil, true, false, intLiteral, StrLiteral, parAbre, self, id, idclass, new
+    ExpresionNode operando(){ //	nil, true, false, intLiteral, StrLiteral, parAbre, self, id, idclass, new
         if (lookahead.getTokenName() == PRNIL || lookahead.getTokenName() == PRTRUE || lookahead.getTokenName() == PRFALSE || lookahead.getTokenName() == LITINT || lookahead.getTokenName() == LITSTR) {
-            literal();
+            return literal();
         }
-        else if (lookahead.getTokenName() == PARABRE || lookahead.getTokenName() == PRSELF || lookahead.getTokenName() == IDCLASS || lookahead.getTokenName() == IDMETAT || lookahead.getTokenName() == PRNEW) {
-            primario();
+        else if (lookahead.getTokenName() == PARABRE || lookahead.getTokenName() == PRSELF || lookahead.getTokenName() == IDCLASS || lookahead.getTokenName() == IDCLASSIO || lookahead.getTokenName() == IDMETAT || lookahead.getTokenName() == PRNEW) {
+            ExpresionNode exp = primario();
+            return operandoF(exp);
         }
         else {
             error(PRNIL, PRTRUE, PRFALSE, LITINT, LITSTR, PARABRE, PRSELF, IDCLASS, IDMETAT, PRNEW);
+            return null; // This line will never be reached due to the error() call, but it's needed to satisfy the compiler.
         }
     }
-    void operandoF(){ //	punto
+    ExpresionNode operandoF(ExpresionNode left){ //	punto
         if (lookahead.getTokenName() == PUNTO) {
-            encadenado();
+            return encadenado(left);
         }
-        else if (lookahead.getTokenName() == PUNTOYCOMA || lookahead.getTokenName() == PARCIERRA || lookahead.getTokenName() == IDMETAT || lookahead.getTokenName() == PRSELF || lookahead.getTokenName() == CORCIERRA || lookahead.getTokenName() == COMA || lookahead.getTokenName() == OPOR || lookahead.getTokenName() == OPAND || lookahead.getTokenName() == OPIGUAL || lookahead.getTokenName() == OPDISTINTO || lookahead.getTokenName() == OPMAYOR || lookahead.getTokenName() == OPMAYORIGUAL || lookahead.getTokenName() == OPMENOR || lookahead.getTokenName() == OPMENORIGUAL || lookahead.getTokenName() == OPASIGNSUMA || lookahead.getTokenName() == OPRESTA || lookahead.getTokenName() == OPMULT ) {
+        else if (lookahead.getTokenName() == PUNTOYCOMA || lookahead.getTokenName() == PARCIERRA || lookahead.getTokenName() == IDMETAT || lookahead.getTokenName() == PRSELF || lookahead.getTokenName() == CORCIERRA || lookahead.getTokenName() == COMA || lookahead.getTokenName() == OPOR || lookahead.getTokenName() == OPAND || lookahead.getTokenName() == OPIGUAL || lookahead.getTokenName() == OPDISTINTO || lookahead.getTokenName() == OPMAYOR || lookahead.getTokenName() == OPMAYORIGUAL || lookahead.getTokenName() == OPMENOR || lookahead.getTokenName() == OPMENORIGUAL || lookahead.getTokenName() == OPASIGNSUMA || lookahead.getTokenName() == OPRESTA || lookahead.getTokenName() == OPMULT || lookahead.getTokenName() == OPSUMA) {
+            return left;
             // lambda
         }
         else {
             error(PUNTO, PUNTOYCOMA, PARCIERRA, IDMETAT, PRSELF, CORCIERRA, COMA, OPOR, OPAND, OPIGUAL, OPDISTINTO, OPMAYOR, OPMAYORIGUAL, OPMENOR, OPMENORIGUAL, OPASIGNSUMA, OPRESTA, OPMULT);
+            return null;
         }
     }
-    void literal(){ //	nil, true, false, intLiteral, StrLiteral
+    LiteralNode literal(){ //	nil, true, false, intLiteral, StrLiteral
         if (lookahead.getTokenName() == PRNIL || lookahead.getTokenName() == PRTRUE || lookahead.getTokenName() == PRFALSE || lookahead.getTokenName() == LITINT || lookahead.getTokenName() == LITSTR)
         {
-            match(lookahead.getTokenName());
+            //match(lookahead.getTokenName());
+            switch (lookahead.getTokenName()) {
+                case PRNIL:
+                    match(lookahead.getTokenName());
+                    return new NilLiteralNode();
+                case PRTRUE:
+                    match(lookahead.getTokenName());
+                    return new BooleanLiteralNode(true);
+                case PRFALSE:
+                    match(lookahead.getTokenName());
+                    return new BooleanLiteralNode(false);
+                case LITINT:
+                    int value = Integer.parseInt(lookahead.getLexeme());
+                    match(lookahead.getTokenName());
+                    return new IntegerLiteralNode(value);
+                case LITSTR:
+                    String valueStr = lookahead.getLexeme();
+                    match(lookahead.getTokenName());
+                    return new StringLiteralNode(valueStr);
+                default:
+                    error(PRNIL, PRTRUE, PRFALSE, LITINT, LITSTR);
+                    return null; // This line will never be reached due to the error() call, but it's needed to satisfy the compiler.
+            }
         }else{
             error(PRNIL, PRTRUE, PRFALSE, LITINT, LITSTR);
+            return null;
         }
     }
-    void primario(){ //	parAbre, self, id, idclass, new
+    ExpresionNode primario(){ //	parAbre, self, id, idclass, new
         if(lookahead.getTokenName() == PARABRE) {
-            expresionParentizada();
+            return expresionParentizada();
         }
         else if (lookahead.getTokenName() == PRSELF) {
-            accesoSelf();
+            return accesoSelf();
         }
-        else if (lookahead.getTokenName() == IDCLASS) {
-            llamadaMetodoEstatico();
+        else if (lookahead.getTokenName() == IDCLASS || lookahead.getTokenName() == IDCLASSIO) {
+            return llamadaMetodoEstatico();
         }
-        else if (lookahead.getTokenName() == IDMETAT && lookaheadSig.getTokenName() == PUNTO) {
-            accesoVar();
-        }
-        else if (lookahead.getTokenName() == IDMETAT && lookaheadSig.getTokenName() == PARABRE) {
-            llamadaMetodo();
+        else if (lookahead.getTokenName() == IDMETAT) {
+            if(lookaheadSig.getTokenName() == PARABRE){
+                return llamadaMetodo();
+            }
+            return accesoVar();
         }
         else if (lookahead.getTokenName() == PRNEW) {
-            llamadaConclassor();
+            return llamadaConclassor();
         }
         else {
             error(PARABRE, PRSELF, IDCLASS, IDMETAT, PRNEW);
+            return null;
         }
     }
-    void expresionParentizada(){ //	parAbre
+    ExpresionNode expresionParentizada(){ //	parAbre
         match(PARABRE);
-        expresion();
+        ExpresionNode exp = expresion();
         match(PARCIERRA);
-        expresionParentizadaF();
+        return expresionParentizadaF(exp);
     }
-    void expresionParentizadaF(){ //	punto
+    ExpresionNode expresionParentizadaF(ExpresionNode parNode){ //	punto
         if (lookahead.getTokenName() == PUNTO) {
-            encadenado();
+            return encadenado(parNode);
         }
         else if (lookahead.getTokenName() == PUNTOYCOMA || lookahead.getTokenName() == PARCIERRA || lookahead.getTokenName() == IDMETAT || lookahead.getTokenName() == PRSELF || lookahead.getTokenName() == CORCIERRA || lookahead.getTokenName() == COMA || lookahead.getTokenName() == OPOR || lookahead.getTokenName() == OPAND || lookahead.getTokenName() == OPIGUAL || lookahead.getTokenName() == OPDISTINTO || lookahead.getTokenName() == OPMAYOR || lookahead.getTokenName() == OPMAYORIGUAL || lookahead.getTokenName() == OPMENOR || lookahead.getTokenName() == OPMENORIGUAL || lookahead.getTokenName() == OPASIGNSUMA || lookahead.getTokenName() == OPRESTA || lookahead.getTokenName() == OPMULT || lookahead.getTokenName() == OPDIVENT ) {
-            // lambda
+            return parNode;
+            //lambda
         }
         else {
             error(PUNTO, PUNTOYCOMA, PARCIERRA, IDMETAT, PRSELF, CORCIERRA, COMA, OPOR, OPAND, OPIGUAL, OPDISTINTO, OPMAYOR, OPMAYORIGUAL, OPMENOR, OPMENORIGUAL, OPASIGNSUMA, OPRESTA, OPMULT, OPDIVENT);
+            return null;
         }
     }
-    void accesoSelf(){ //	self
+    ExpresionNode accesoSelf(){ //	self
         match(PRSELF);
-        accesoSelfF();
+        SelfNode selfNode = new SelfNode();
+        return accesoSelfF(selfNode);
     }
-    void accesoSelfF(){ //	punto
+    ExpresionNode accesoSelfF(SelfNode selfNode){ //	punto
         if (lookahead.getTokenName() == PUNTO) {
-            encadenado();
+            return encadenado(selfNode);
         }
         else if (lookahead.getTokenName() == PUNTOYCOMA || lookahead.getTokenName() == PARCIERRA || lookahead.getTokenName() == IDMETAT || lookahead.getTokenName() == PRSELF || lookahead.getTokenName() == CORCIERRA || lookahead.getTokenName() == COMA || lookahead.getTokenName() == OPOR || lookahead.getTokenName() == OPAND || lookahead.getTokenName() == OPIGUAL || lookahead.getTokenName() == OPDISTINTO || lookahead.getTokenName() == OPMAYOR || lookahead.getTokenName() == OPMAYORIGUAL || lookahead.getTokenName() == OPMENOR || lookahead.getTokenName() == OPMENORIGUAL || lookahead.getTokenName() == OPASIGNSUMA || lookahead.getTokenName() == OPRESTA || lookahead.getTokenName() == OPMULT || lookahead.getTokenName() == OPDIVENT ) {
             // lambda
+            return selfNode;
         }
         else {
             error(PUNTO, PUNTOYCOMA, PARCIERRA, IDMETAT, PRSELF, CORCIERRA, COMA, OPOR, OPAND, OPIGUAL, OPDISTINTO, OPMAYOR, OPMAYORIGUAL, OPMENOR, OPMENORIGUAL, OPASIGNSUMA, OPRESTA, OPMULT, OPDIVENT);
+            return null;
         }
     }
-    void accesoVar (){ //	id
+    ExpresionNode accesoVar (){ //	id
+        String value = lookahead.getLexeme();
+        //String lexeme = lookahead.getTokenName().toString();
         match(IDMETAT);
-        accesoVarF1();
+        VarNode varNode = new VarNode(value);
+        return accesoVarF1(varNode);
     }
-    void accesoVarF1(){ //	punto, corAbre
+    ExpresionNode accesoVarF1(VarNode varNode){ //	punto, corAbre
         if (lookahead.getTokenName() == PUNTO) {
-            encadenado();
+            return encadenado(varNode);
         }
         else if (lookahead.getTokenName() == CORABRE) {
             match(CORABRE);
-            expresion();
+            ExpresionNode exp = expresion();
             match(CORCIERRA);
-            accesoVarF2();
+            ArrayAccessNode arrayAccessNode = new ArrayAccessNode(varNode,exp);
+            return accesoVarF2(arrayAccessNode);
         }
-        else if (lookahead.getTokenName() == PUNTOYCOMA || lookahead.getTokenName() == PARCIERRA || lookahead.getTokenName() == IDMETAT || lookahead.getTokenName() == PRSELF || lookahead.getTokenName() == CORCIERRA || lookahead.getTokenName() == COMA || lookahead.getTokenName() == OPOR || lookahead.getTokenName() == OPAND || lookahead.getTokenName() == OPIGUAL || lookahead.getTokenName() == OPDISTINTO || lookahead.getTokenName() == OPMAYOR || lookahead.getTokenName() == OPMAYORIGUAL || lookahead.getTokenName() == OPMENOR || lookahead.getTokenName() == OPMENORIGUAL || lookahead.getTokenName() == OPASIGNSUMA || lookahead.getTokenName() == OPRESTA || lookahead.getTokenName() == OPMULT || lookahead.getTokenName() == OPDIVENT) {
-            // lambda
+        else if (lookahead.getTokenName() == PUNTOYCOMA || lookahead.getTokenName() == PARCIERRA || lookahead.getTokenName() == IDMETAT || lookahead.getTokenName() == PRSELF || lookahead.getTokenName() == CORCIERRA || lookahead.getTokenName() == COMA || lookahead.getTokenName() == OPOR || lookahead.getTokenName() == OPAND || lookahead.getTokenName() == OPIGUAL || lookahead.getTokenName() == OPDISTINTO || lookahead.getTokenName() == OPMAYOR || lookahead.getTokenName() == OPMAYORIGUAL || lookahead.getTokenName() == OPMENOR || lookahead.getTokenName() == OPMENORIGUAL || lookahead.getTokenName() == OPASIGNSUMA || lookahead.getTokenName() == OPRESTA || lookahead.getTokenName() == OPMULT || lookahead.getTokenName() == OPDIVENT || lookahead.getTokenName() == OPSUMA) {
+            return varNode;
         } else {
             error(PUNTO, CORABRE, PUNTOYCOMA, PARCIERRA, IDMETAT, PRSELF, CORCIERRA, COMA, OPOR, OPAND, OPIGUAL, OPDISTINTO, OPMAYOR, OPMAYORIGUAL, OPMENOR, OPMENORIGUAL, OPASIGNSUMA, OPRESTA, OPMULT, OPDIVENT);
+            return null;
         }
     }
-    void accesoVarF2(){ 	//punto
+    ExpresionNode accesoVarF2(ExpresionNode parent){ 	//punto
         if (lookahead.getTokenName() == PUNTO) {
-            encadenado();
+            return encadenado(parent);
         }
         else if (lookahead.getTokenName() == PUNTOYCOMA || lookahead.getTokenName() == PARCIERRA || lookahead.getTokenName() == IDMETAT || lookahead.getTokenName() == PRSELF || lookahead.getTokenName() == CORCIERRA || lookahead.getTokenName() == COMA || lookahead.getTokenName() == OPOR || lookahead.getTokenName() == OPAND || lookahead.getTokenName() == OPIGUAL || lookahead.getTokenName() == OPDISTINTO || lookahead.getTokenName() == OPMAYOR || lookahead.getTokenName() == OPMAYORIGUAL || lookahead.getTokenName() == OPMENOR || lookahead.getTokenName() == OPMENORIGUAL || lookahead.getTokenName() == OPASIGNSUMA || lookahead.getTokenName() == OPRESTA || lookahead.getTokenName() == OPMULT || lookahead.getTokenName() == OPDIVENT ) {
             // lambda
+            return parent;
         }
         else {
             error(PUNTO, PUNTOYCOMA, PARCIERRA, IDMETAT, PRSELF, CORCIERRA, COMA, OPOR, OPAND, OPIGUAL, OPDISTINTO, OPMAYOR, OPMAYORIGUAL, OPMENOR, OPMENORIGUAL, OPASIGNSUMA, OPRESTA, OPMULT, OPDIVENT);
+            return null;
         }
     }
-    void llamadaMetodo(){ //	id
+    ExpresionNode llamadaMetodo(){ //	id
+        String name = lookahead.getLexeme();
         match(IDMETAT);
-        argumentosActuales();
-        llamadaMetodoF();
+        List<ExpresionNode> args = argumentosActuales();
+        MethodCallNode methodCallNode = new MethodCallNode(null, name, args);
+        return llamadaMetodoF(methodCallNode);
     }
-    void llamadaMetodoF(){ 	//punto
+    ExpresionNode llamadaMetodoF(MethodCallNode methodCallNode){ 	//punto
         if (lookahead.getTokenName() == PUNTO) {
-            encadenado();
+            return encadenado(methodCallNode);
         }
         else if (lookahead.getTokenName() == PUNTOYCOMA || lookahead.getTokenName() == PARCIERRA || lookahead.getTokenName() == IDMETAT || lookahead.getTokenName() == PRSELF || lookahead.getTokenName() == CORCIERRA || lookahead.getTokenName() == COMA || lookahead.getTokenName() == OPOR || lookahead.getTokenName() == OPAND || lookahead.getTokenName() == OPIGUAL || lookahead.getTokenName() == OPDISTINTO || lookahead.getTokenName() == OPMAYOR || lookahead.getTokenName() == OPMAYORIGUAL || lookahead.getTokenName() == OPMENOR || lookahead.getTokenName() == OPMENORIGUAL || lookahead.getTokenName() == OPASIGNSUMA || lookahead.getTokenName() == OPRESTA || lookahead.getTokenName() == OPMULT || lookahead.getTokenName() == OPDIVENT ) {
             // lambda
+            return methodCallNode;
         }
         else {
             error(PUNTO, PUNTOYCOMA, PARCIERRA, IDMETAT, PRSELF, CORCIERRA, COMA, OPOR, OPAND, OPIGUAL, OPDISTINTO, OPMAYOR, OPMAYORIGUAL, OPMENOR, OPMENORIGUAL, OPASIGNSUMA, OPRESTA, OPMULT, OPDIVENT);
+            return null;
         }
     }
-    void llamadaMetodoEstatico(){ //	idclass
-        match(IDCLASS);
-        match(PUNTO);
-        llamadaMetodo();
-        llamadaMetodoEstaticoF();
-    }
-    void llamadaMetodoEstaticoF(){ //	punto
-        if(lookahead.getTokenName() == PUNTO) {
-            encadenado();
-        }
-        else if (lookahead.getTokenName() == PUNTOYCOMA || lookahead.getTokenName() == PARCIERRA || lookahead.getTokenName() == IDMETAT || lookahead.getTokenName() == PRSELF || lookahead.getTokenName() == CORCIERRA || lookahead.getTokenName() == COMA || lookahead.getTokenName() == OPOR || lookahead.getTokenName() == OPAND || lookahead.getTokenName() == OPIGUAL || lookahead.getTokenName() == OPDISTINTO || lookahead.getTokenName() == OPMAYOR || lookahead.getTokenName() == OPMAYORIGUAL || lookahead.getTokenName() == OPMENOR || lookahead.getTokenName() == OPMENORIGUAL || lookahead.getTokenName() == OPASIGNSUMA || lookahead.getTokenName() == OPRESTA || lookahead.getTokenName() == OPMULT || lookahead.getTokenName() == OPDIVENT ) {
-            // lambda
-        }
-        else {
-            error(PUNTO, PUNTOYCOMA, PARCIERRA, IDMETAT, PRSELF, CORCIERRA, COMA, OPOR, OPAND, OPIGUAL, OPDISTINTO, OPMAYOR, OPMAYORIGUAL, OPMENOR, OPMENORIGUAL, OPASIGNSUMA, OPRESTA, OPMULT, OPDIVENT);
-        }
-    }
-    void llamadaConclassor (){ //	new
-        match(PRNEW);
-        llamadaConclassorF1();
-    }
-    void llamadaConclassorF1(){ //	idclass, Str, Bool, Int
-        if (lookahead.getTokenName() == IDCLASS) {
+    ExpresionNode llamadaMetodoEstatico(){ //	idclass
+        String className  = lookahead.getLexeme();
+        if(lookahead.getTokenName() == IDCLASSIO) {
+            match(IDCLASSIO);
+            className = "io";
+        } else {
             match(IDCLASS);
-            argumentosActuales();
-            llamadaConclassorF2();
+        }
+        match(PUNTO);
+        MethodCallNode method = (MethodCallNode) llamadaMetodo();
+        StaticMethodCallNode node = new StaticMethodCallNode(className,method);
+        return llamadaMetodoEstaticoF(node);
+    }
+    ExpresionNode llamadaMetodoEstaticoF(ExpresionNode node){ //	punto
+        if(lookahead.getTokenName() == PUNTO) {
+            return encadenado(node);
+        }
+        else if (lookahead.getTokenName() == PUNTOYCOMA || lookahead.getTokenName() == PARCIERRA || lookahead.getTokenName() == IDMETAT || lookahead.getTokenName() == PRSELF || lookahead.getTokenName() == CORCIERRA || lookahead.getTokenName() == COMA || lookahead.getTokenName() == OPOR || lookahead.getTokenName() == OPAND || lookahead.getTokenName() == OPIGUAL || lookahead.getTokenName() == OPDISTINTO || lookahead.getTokenName() == OPMAYOR || lookahead.getTokenName() == OPMAYORIGUAL || lookahead.getTokenName() == OPMENOR || lookahead.getTokenName() == OPMENORIGUAL || lookahead.getTokenName() == OPASIGNSUMA || lookahead.getTokenName() == OPRESTA || lookahead.getTokenName() == OPMULT || lookahead.getTokenName() == OPDIVENT ) {
+            return node;
+            // lambda
+        }
+        else {
+            error(PUNTO, PUNTOYCOMA, PARCIERRA, IDMETAT, PRSELF, CORCIERRA, COMA, OPOR, OPAND, OPIGUAL, OPDISTINTO, OPMAYOR, OPMAYORIGUAL, OPMENOR, OPMENORIGUAL, OPASIGNSUMA, OPRESTA, OPMULT, OPDIVENT);
+            return null;
+        }
+    }
+    ExpresionNode llamadaConclassor (){ //	new
+        match(PRNEW);
+        return llamadaConclassorF1();
+    }
+    ExpresionNode llamadaConclassorF1(){ //	idclass, Str, Bool, Int
+        if (lookahead.getTokenName() == IDCLASS || lookahead.getTokenName() == IDCLASSIO) {
+            String name = lookahead.getLexeme();
+            match(IDCLASS);
+            List<ExpresionNode> arguments = argumentosActuales();
+            return llamadaConclassorF2(new ConstructorCallNode(name,arguments));
         }
         else if (lookahead.getTokenName() == IDCLASSINT || lookahead.getTokenName() == IDCLASSBOOL || lookahead.getTokenName() == IDCLASSSTR) {
-            tipoPrimitivo();
+            TypeNode type = tipoPrimitivo();
             match(CORABRE);
-            expresion();
+            ExpresionNode exp = expresion();
             match(CORCIERRA);
+            return new ArrayCreationNode(type, exp);
+
         }
         else {
             error(IDCLASS, IDCLASSINT, IDCLASSBOOL, IDCLASSSTR);
+            return null;
         }
     }
-    void llamadaConclassorF2(){ //	punto
+    ExpresionNode llamadaConclassorF2(ExpresionNode parent){ //	punto
         if (lookahead.getTokenName() == PUNTO) {
-            encadenado();
+            return encadenado(parent);
         }
         else if (lookahead.getTokenName() == PUNTOYCOMA || lookahead.getTokenName() == PARCIERRA || lookahead.getTokenName() == IDMETAT || lookahead.getTokenName() == PRSELF || lookahead.getTokenName() == CORCIERRA || lookahead.getTokenName() == COMA || lookahead.getTokenName() == OPOR || lookahead.getTokenName() == OPAND || lookahead.getTokenName() == OPIGUAL || lookahead.getTokenName() == OPDISTINTO || lookahead.getTokenName() == OPMAYOR || lookahead.getTokenName() == OPMAYORIGUAL || lookahead.getTokenName() == OPMENOR || lookahead.getTokenName() == OPMENORIGUAL || lookahead.getTokenName() == OPASIGNSUMA || lookahead.getTokenName() == OPRESTA || lookahead.getTokenName() == OPMULT || lookahead.getTokenName() == OPDIVENT ) {
-            // lambda
+            return parent;
         }
         else {
             error(PUNTO, PUNTOYCOMA, PARCIERRA, IDMETAT, PRSELF, CORCIERRA, COMA, OPOR, OPAND, OPIGUAL, OPDISTINTO, OPMAYOR, OPMAYORIGUAL, OPMENOR, OPMENORIGUAL, OPASIGNSUMA, OPRESTA, OPMULT, OPDIVENT);
+            return null;
         }
     }
-    void argumentosActuales(){ //	parAbre
+    List<ExpresionNode> argumentosActuales(){ //	parAbre
         match(PARABRE);
-        argumentosActualesF();
+        return argumentosActualesF();
     }
-    void argumentosActualesF(){ //	parCierra, =+,-, !,++,--, (Int), nil, true, false, intLiteral, StrLiteral, parAbre, self, id, idclass, new
+    List<ExpresionNode> argumentosActualesF(){ //	parCierra, =+,-, !,++,--, (Int), nil, true, false, intLiteral, StrLiteral, parAbre, self, id, idclass, new
         //if =+,-, !,++,--, (Int), nil, true, false, intLiteral, StrLiteral, parAbre, self, id, idclass, new
-        if (lookahead.getTokenName() == OPASIGNSUMA || lookahead.getTokenName() == OPRESTA || lookahead.getTokenName() == OPNOT || lookahead.getTokenName() == OPINCR || lookahead.getTokenName() == OPDECR || lookahead.getTokenName() == IDCLASSINT || lookahead.getTokenName() == PRNIL || lookahead.getTokenName() == PRTRUE || lookahead.getTokenName() == PRFALSE || lookahead.getTokenName() == LITINT || lookahead.getTokenName() == LITSTR || lookahead.getTokenName() == PARABRE ||lookahead.getTokenName() == PRSELF || lookahead.getTokenName() == IDMETAT || lookahead.getTokenName() == IDCLASS || lookahead.getTokenName() == PRNEW) {
-            listaExpresiones();
+        if (lookahead.getTokenName() == OPASIGNSUMA || lookahead.getTokenName() == OPRESTA || lookahead.getTokenName() == OPNOT || lookahead.getTokenName() == OPINCR || lookahead.getTokenName() == OPDECR || lookahead.getTokenName() == IDCLASSINT || lookahead.getTokenName() == PRNIL || lookahead.getTokenName() == PRTRUE || lookahead.getTokenName() == PRFALSE || lookahead.getTokenName() == LITINT || lookahead.getTokenName() == LITSTR || lookahead.getTokenName() == PARABRE ||lookahead.getTokenName() == PRSELF || lookahead.getTokenName() == IDMETAT || lookahead.getTokenName() == IDCLASS || lookahead.getTokenName() == IDCLASSIO || lookahead.getTokenName() == PRNEW) {
+            List<ExpresionNode> arguments = listaExpresiones();
             match(PARCIERRA);
+            return arguments;
         }
         else if (lookahead.getTokenName() == PARCIERRA) {
             match(PARCIERRA);
+            return new ArrayList<>();
         }
         else {
             error(OPASIGNSUMA, OPRESTA, OPNOT, OPINCR, OPDECR, IDCLASSINT, PRNIL, PRTRUE, PRFALSE, LITINT, LITSTR, PARABRE, PRSELF, IDMETAT, IDCLASS, PRNEW, PARCIERRA);
+            return null;
         }
     }
-    void listaExpresiones(){ //	=+,-, !,++,--, (Int), nil, true, false, intLiteral, StrLiteral, parAbre, self, id, idclass, new
-        expresion();
-        listaExpresionesF();
+    List<ExpresionNode> listaExpresiones() {
+        List<ExpresionNode> expresiones = new ArrayList<>();
+        expresiones.add(expresion());
+        while (lookahead.getTokenName() == COMA) {
+            match(COMA);
+            expresiones.add(expresion());
+        }
+        if (lookahead.getTokenName() == PARCIERRA) {
+            return expresiones;
+            // lambda
+        }else {
+            error(COMA, PARCIERRA);
+            return null;
+        }
     }
-    void listaExpresionesF(){ //	coma
+
+    /* OLD IMPLEMENTATION
+    List<ExpresionNode> listaExpresiones(){ //	=+,-, !,++,--, (Int), nil, true, false, intLiteral, StrLiteral, parAbre, self, id, idclass, new
+
+        List<ExpresionNode> expresiones = new ArrayList<>();
+        expresiones.add(expresion());
+        listaExpresionesF(expresiones);
+        return expresiones;
+    }
+    void listaExpresionesF(List<ExpresionNode> expresiones){ //	coma
         if (lookahead.getTokenName() == COMA) {
             match(COMA);
             listaExpresiones();
@@ -840,64 +1216,77 @@ public class SintaxAnalyzer {
         else {
             error(COMA, PARCIERRA);
         }
-    }
-    void encadenado(){ //	punto
+    }*/
+    ExpresionNode encadenado(ExpresionNode parent){ //	punto
         match(PUNTO);
-        encadenadoF();
+        return encadenadoF(parent);
     }
-    void encadenadoF(){  //	id
+    ExpresionNode encadenadoF(ExpresionNode parent){  //	id
         if (lookahead.getTokenName() == IDMETAT && lookaheadSig.getTokenName() == PARABRE) {
-            llamadaMetodoEncadenado();
+            return llamadaMetodoEncadenado(parent);
         }
         else if (lookahead.getTokenName() == IDMETAT && (lookaheadSig.getTokenName() == PUNTO || lookaheadSig.getTokenName() == CORABRE || lookaheadSig.getTokenName() == OPASIGNSUMA || lookaheadSig.getTokenName() == OPRESTA || lookaheadSig.getTokenName() == OPNOT || lookaheadSig.getTokenName() == OPINCR || lookaheadSig.getTokenName() == OPDECR || lookaheadSig.getTokenName() == IDCLASSINT || lookaheadSig.getTokenName() == PRNIL || lookaheadSig.getTokenName() == PRTRUE || lookaheadSig.getTokenName() == PRFALSE || lookaheadSig.getTokenName() == LITINT || lookaheadSig.getTokenName() == LITSTR || lookaheadSig.getTokenName() == PARABRE ||lookaheadSig.getTokenName() == PRSELF || lookaheadSig.getTokenName() == IDMETAT || lookaheadSig.getTokenName() == IDCLASS || lookaheadSig.getTokenName() == PRNEW) ) {
-            accesoVariableEncadenado();
+            return accesoVariableEncadenado(parent);
         }
         else {
             error(IDMETAT);
+            return null;
         }
     }
-    void llamadaMetodoEncadenado(){ //	id
+    ExpresionNode llamadaMetodoEncadenado(ExpresionNode parent){ //	id
+        String methodName = lookahead.getLexeme();
         match(IDMETAT);
-        argumentosActuales();
-        llamadaMetodoEncadenadoF();
+        List<ExpresionNode> arguments = argumentosActuales();
+        MethodCallNode call = new MethodCallNode(parent, methodName, arguments);
+        return llamadaMetodoEncadenadoF(call);
     }
-    void llamadaMetodoEncadenadoF(){ //	punto
+    ExpresionNode llamadaMetodoEncadenadoF(ExpresionNode parent){ //	punto
         if (lookahead.getTokenName() == PUNTO) {
-            encadenado();
+            return encadenado(parent);
         }
         else if (lookahead.getTokenName() == PUNTOYCOMA || lookahead.getTokenName() == PARCIERRA || lookahead.getTokenName() == IDMETAT || lookahead.getTokenName() == PRSELF || lookahead.getTokenName() == CORCIERRA || lookahead.getTokenName() == COMA || lookahead.getTokenName() == OPOR || lookahead.getTokenName() == OPAND || lookahead.getTokenName() == OPIGUAL || lookahead.getTokenName() == OPDISTINTO || lookahead.getTokenName() == OPMAYOR || lookahead.getTokenName() == OPMAYORIGUAL || lookahead.getTokenName() == OPMENOR || lookahead.getTokenName() == OPMENORIGUAL || lookahead.getTokenName() == OPASIGNSUMA || lookahead.getTokenName() == OPRESTA || lookahead.getTokenName() == OPMULT || lookahead.getTokenName() == OPDIVENT ) {
+            return parent;
             // lambda
         }
         else {
             error(PUNTO, PUNTOYCOMA, PARCIERRA, IDMETAT, PRSELF, CORCIERRA, COMA, OPOR, OPAND, OPIGUAL, OPDISTINTO, OPMAYOR, OPMAYORIGUAL, OPMENOR, OPMENORIGUAL, OPASIGNSUMA, OPRESTA, OPMULT, OPDIVENT);
+            return null;
         }
     }
-    void accesoVariableEncadenado(){ //	id
+    ExpresionNode accesoVariableEncadenado(ExpresionNode parent){ //	id
+        String name = lookahead.getLexeme();
         match(IDMETAT);
-        accesoVariableEncadenadoF1();
+        FieldAccessNode fieldAccessNode = new FieldAccessNode(parent, name);
+        return accesoVariableEncadenadoF1(fieldAccessNode);
     }
-    void accesoVariableEncadenadoF1() { //	punto, corAbre
+    ExpresionNode accesoVariableEncadenadoF1(ExpresionNode fieldAccessNode) { //	punto, corAbre
         if (lookahead.getTokenName() == PUNTO) {
-            encadenado();
+            return encadenado(fieldAccessNode);
         } else if (lookahead.getTokenName() == CORABRE) {
             match(CORABRE);
-            expresion();
+            ExpresionNode indice = expresion();
             match(CORCIERRA);
-            accesoVariableEncadenadoF2();
+            ArrayAccessNode array =
+                    new ArrayAccessNode(fieldAccessNode, indice);
+            return accesoVariableEncadenadoF2(array);
         } else if (lookahead.getTokenName() == PUNTOYCOMA || lookahead.getTokenName() == PARCIERRA || lookahead.getTokenName() == IDMETAT || lookahead.getTokenName() == PRSELF || lookahead.getTokenName() == CORCIERRA || lookahead.getTokenName() == COMA || lookahead.getTokenName() == OPOR || lookahead.getTokenName() == OPAND || lookahead.getTokenName() == OPIGUAL || lookahead.getTokenName() == OPDISTINTO || lookahead.getTokenName() == OPMAYOR || lookahead.getTokenName() == OPMAYORIGUAL || lookahead.getTokenName() == OPMENOR || lookahead.getTokenName() == OPMENORIGUAL || lookahead.getTokenName() == OPASIGNSUMA || lookahead.getTokenName() == OPRESTA || lookahead.getTokenName() == OPMULT || lookahead.getTokenName() == OPDIVENT) {
-            // lambda
+            return fieldAccessNode;
+            //lambda
         }
         else {
             error(PUNTO, CORABRE, PUNTOYCOMA, PARCIERRA, IDMETAT, PRSELF, CORCIERRA, COMA, OPOR, OPAND, OPIGUAL, OPDISTINTO, OPMAYOR, OPMAYORIGUAL, OPMENOR, OPMENORIGUAL, OPASIGNSUMA, OPRESTA, OPMULT, OPDIVENT);
+            return null;
         }
     }
-    void accesoVariableEncadenadoF2() { //	punto
+    ExpresionNode accesoVariableEncadenadoF2(ExpresionNode parent) { //	punto
         if (lookahead.getTokenName() == PUNTO) {
-            encadenado();
+            return encadenado(parent);
         } else if (lookahead.getTokenName() == PUNTOYCOMA || lookahead.getTokenName() == PARCIERRA || lookahead.getTokenName() == IDMETAT || lookahead.getTokenName() == PRSELF || lookahead.getTokenName() == CORCIERRA || lookahead.getTokenName() == COMA || lookahead.getTokenName() == OPOR || lookahead.getTokenName() == OPAND || lookahead.getTokenName() == OPIGUAL || lookahead.getTokenName() == OPDISTINTO || lookahead.getTokenName() == OPMAYOR || lookahead.getTokenName() == OPMAYORIGUAL || lookahead.getTokenName() == OPMENOR || lookahead.getTokenName() == OPMENORIGUAL || lookahead.getTokenName() == OPASIGNSUMA || lookahead.getTokenName() == OPRESTA || lookahead.getTokenName() == OPMULT || lookahead.getTokenName() == OPDIVENT) {
+            return parent;
             // lambda
         } else {
             error(PUNTO, PUNTOYCOMA, PARCIERRA, IDMETAT, PRSELF, CORCIERRA, COMA, OPOR, OPAND, OPIGUAL, OPDISTINTO, OPMAYOR, OPMAYORIGUAL, OPMENOR, OPMENORIGUAL, OPASIGNSUMA, OPRESTA, OPMULT, OPDIVENT);
+            return null;
         }
     }
 

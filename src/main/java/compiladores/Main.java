@@ -1,7 +1,11 @@
 package compiladores;
 
 import java.io.File;
+
+import compiladores.AST.ProgramNode;
 import compiladores.lexicon.Analyzer;
+import compiladores.sintax.SintaxAnalyzer;
+import compiladores.AST.NodeType;
 
 public class Main {
     public static void main(String[] args) {
@@ -16,12 +20,24 @@ public class Main {
         // 3. Create a File object (optional, can also use Paths directly)
         File file = new File(fileName);
         Analyzer lexiconAnalyzer = new Analyzer(file);
+        SintaxAnalyzer sintaxAnalyzer = new SintaxAnalyzer(lexiconAnalyzer);
+        System.out.println("Inicio analisis");
+        try {
+            ProgramNode root = sintaxAnalyzer.parse();
+            System.out.println("Análisis sintáctico completado: " + root);
+        } catch (RuntimeException ex) {
+            System.out.println("Error en el análisis");
+            ex.printStackTrace();
+            System.err.println(ex.getMessage());
+            System.exit(1);
+        } finally {
+            lexiconAnalyzer.cerrar();
+        }
 
          // 4. Validate file existence and readability. Necesary? Dont think so
         // if (!file.exists() || !file.isFile() || !file.canRead()) {
         //     System.out.println("Error: The specified file either does not exist, is not a regular file, or cannot be read.");
         //     System.exit(1);
         // }
-        
     }
 }
