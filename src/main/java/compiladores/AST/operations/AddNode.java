@@ -2,6 +2,7 @@ package compiladores.AST.operations;
 
 import compiladores.AST.ExpresionNode;
 import compiladores.AST.NodeType;
+import compiladores.semantic.ASTVisitor;
 
 public class AddNode extends ExpresionNode {
     private ExpresionNode left;
@@ -28,20 +29,8 @@ public class AddNode extends ExpresionNode {
     public void setRight(ExpresionNode right) {
         this.right = right;
     }
-
-    // a validar con el manual
-    public Boolean validate(){
-        if(left.getNodeType() == NodeType.IntegerLiteral && right.getNodeType() == NodeType.IntegerLiteral){
-            this.setNodeType(NodeType.IntegerLiteral);
-            return true;
-        } else if(left.getNodeType() == NodeType.FloatLiteral && right.getNodeType() == NodeType.FloatLiteral){
-            this.setNodeType(NodeType.FloatLiteral);
-            return true;
-        } else if((left.getNodeType() == NodeType.IntegerLiteral && right.getNodeType() == NodeType.FloatLiteral) || (left.getNodeType() == NodeType.FloatLiteral && right.getNodeType() == NodeType.IntegerLiteral)){
-            this.setNodeType(NodeType.FloatLiteral);
-            return true;
-        } else {
-            return false;
-        }
+    @Override
+    public void accept(ASTVisitor visitor) {
+        visitor.visit(this);
     }
 }

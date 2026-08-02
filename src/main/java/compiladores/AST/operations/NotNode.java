@@ -2,6 +2,7 @@ package compiladores.AST.operations;
 
 import compiladores.AST.ExpresionNode;
 import compiladores.AST.NodeType;
+import compiladores.semantic.ASTVisitor;
 
 public class NotNode extends ExpresionNode{
     private ExpresionNode expresion;
@@ -17,5 +18,9 @@ public class NotNode extends ExpresionNode{
 
     public void setExpresion(ExpresionNode expresion) {
         this.expresion = expresion;
+    }
+    @Override
+    public void accept(ASTVisitor visitor) {
+        visitor.visit(this);
     }
 }

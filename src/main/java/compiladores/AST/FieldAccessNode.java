@@ -1,5 +1,7 @@
 package compiladores.AST;
 
+import compiladores.semantic.ASTVisitor;
+
 public class FieldAccessNode extends ExpresionNode {
     private ExpresionNode object;
     private String fieldName;
@@ -24,5 +26,9 @@ public class FieldAccessNode extends ExpresionNode {
 
     public void setFieldName(String fieldName) {
         this.fieldName = fieldName;
+    }
+    @Override
+    public void accept(ASTVisitor visitor) {
+        visitor.visit(this);
     }
 }

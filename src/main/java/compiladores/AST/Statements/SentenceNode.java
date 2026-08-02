@@ -2,6 +2,8 @@ package compiladores.AST.Statements;
 
 import compiladores.AST.Node;
 import compiladores.AST.NodeType;
+import compiladores.semantic.ASTVisitor;
+import compiladores.semantic.SemanticAnalyzer;
 
 public class SentenceNode extends Node {
     private NodeType nodeType;
@@ -26,5 +28,9 @@ public class SentenceNode extends Node {
 
     public void setValue(String value) {
         this.value = value;
+    }
+
+    public void accept(ASTVisitor visitor) {
+        visitor.visit(this);
     }
 }

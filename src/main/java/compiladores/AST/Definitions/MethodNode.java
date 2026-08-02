@@ -3,6 +3,7 @@ package compiladores.AST.Definitions;
 import compiladores.AST.Statements.BlockNode;
 import compiladores.AST.FormalParameterNode;
 import compiladores.AST.typeNodes.TypeNode;
+import compiladores.semantic.ASTVisitor;
 
 import java.util.List;
 
@@ -42,5 +43,9 @@ public class MethodNode extends DefinitionNode {
 
     public void setBody(BlockNode body) {
         this.body = body;
+    }
+    @Override
+    public void accept(ASTVisitor visitor) {
+        visitor.visit(this);
     }
 }

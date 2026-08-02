@@ -1,5 +1,8 @@
 package compiladores.AST;
 
+import compiladores.semantic.ASTVisitor;
+import compiladores.semantic.SemanticAnalyzer;
+
 public class StartNode extends Node {
     private Node root;
 
@@ -13,5 +16,10 @@ public class StartNode extends Node {
 
     public void setRoot(Node root) {
         this.root = root;
+    }
+
+    @Override
+    public void accept(ASTVisitor visitor) {
+        visitor.visit(this);
     }
 }

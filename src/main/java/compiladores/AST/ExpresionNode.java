@@ -1,6 +1,8 @@
 package compiladores.AST;
 
-public class ExpresionNode extends Node {
+import compiladores.semantic.ASTVisitor;
+
+public abstract class ExpresionNode extends Node {
     private NodeType nodeType;
     private String value;
 
@@ -24,4 +26,6 @@ public class ExpresionNode extends Node {
     public void setValue(String value) {
         this.value = value;
     }
+
+    public abstract void accept(ASTVisitor visitor);
 }

@@ -2,6 +2,7 @@ package compiladores.AST.Statements;
 
 import compiladores.AST.ExpresionNode;
 import compiladores.AST.NodeType;
+import compiladores.semantic.ASTVisitor;
 
 public class WhileNode extends SentenceNode {
     private ExpresionNode condition;
@@ -27,5 +28,9 @@ public class WhileNode extends SentenceNode {
 
     public void setBody(SentenceNode body) {
         this.body = body;
+    }
+    @Override
+    public void accept(ASTVisitor visitor) {
+        visitor.visit(this);
     }
 }

@@ -1,5 +1,7 @@
 package compiladores.AST;
 
+import compiladores.semantic.ASTVisitor;
+
 public class VarNode extends ExpresionNode {
     private String name;
 
@@ -10,5 +12,10 @@ public class VarNode extends ExpresionNode {
 
     public String getName() {
         return name;
+    }
+
+    @Override
+    public void accept(ASTVisitor visitor) {
+        visitor.visit(this);
     }
 }

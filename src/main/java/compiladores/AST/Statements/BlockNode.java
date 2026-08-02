@@ -2,12 +2,13 @@ package compiladores.AST.Statements;
 
 import compiladores.AST.NodeType;
 import compiladores.AST.VariableDeclarationNode;
+import compiladores.semantic.ASTVisitor;
 
 import java.util.List;
 
 public class BlockNode extends SentenceNode {
     private List<VariableDeclarationNode> variables;
-    List<SentenceNode> statements;
+    private List<SentenceNode> statements;
 
     public BlockNode(List<VariableDeclarationNode> variables, List<SentenceNode> statements) {
         super(NodeType.BlockNode, "Block");
@@ -26,5 +27,9 @@ public class BlockNode extends SentenceNode {
 
     public List<SentenceNode> getStatements() {
         return statements;
+    }
+    @Override
+    public void accept(ASTVisitor visitor) {
+        visitor.visit(this);
     }
 }

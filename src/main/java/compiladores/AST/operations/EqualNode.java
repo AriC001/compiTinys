@@ -2,6 +2,7 @@ package compiladores.AST.operations;
 
 import compiladores.AST.ExpresionNode;
 import compiladores.AST.NodeType;
+import compiladores.semantic.ASTVisitor;
 
 public class EqualNode extends ExpresionNode{
     private ExpresionNode left;
@@ -27,5 +28,9 @@ public class EqualNode extends ExpresionNode{
 
     public void setRight(ExpresionNode right) {
         this.right = right;
+    }
+    @Override
+    public void accept(ASTVisitor visitor) {
+        visitor.visit(this);
     }
 }

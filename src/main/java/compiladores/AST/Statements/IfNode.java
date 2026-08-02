@@ -2,6 +2,7 @@ package compiladores.AST.Statements;
 
 import compiladores.AST.ExpresionNode;
 import compiladores.AST.NodeType;
+import compiladores.semantic.ASTVisitor;
 
 public class IfNode extends SentenceNode {
     private ExpresionNode condition;
@@ -37,5 +38,9 @@ public class IfNode extends SentenceNode {
 
     public void setElseBranch(SentenceNode elseBranch) {
         this.elseBranch = elseBranch;
+    }
+    @Override
+    public void accept(ASTVisitor visitor) {
+        visitor.visit(this);
     }
 }

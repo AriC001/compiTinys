@@ -2,6 +2,8 @@ package compiladores.lexicon;
 
 // Alfabeto = {a-z,A-Z,0-9,_,.,(,),[,],{,},;,=,+,-,*,/,<,>,!,¡,¿,?,&,|,",\}
 
+import compiladores.semantic.SemanticAnalyzer;
+
 public enum TokenType {
     // Identificadores
     IDMETAT, // (a-z)(a-z,A-Z,0-9)*
@@ -17,6 +19,8 @@ public enum TokenType {
     // Literales
     LITINT, // (0-9)(0-9)*
     LITSTR, // "(a-z,A-Z,0-9,_,.,(,),[,],{,},;,=,+,-,*,/,<,>,!,¡,¿,?,&,|,",\)*"
+    LITBOOL, // true | false
+    LITNIL, // nil
 
     // Simbolos del código
     PARABRE,  // (
@@ -70,5 +74,6 @@ public enum TokenType {
     OPDISTINTO, // !=
     OPASIGN, // =
     OPASIGNSUMA // =+
+    ;
 
 }

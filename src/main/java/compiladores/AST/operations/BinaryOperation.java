@@ -3,6 +3,7 @@ package compiladores.AST.operations;
 import compiladores.AST.ExpresionNode;
 import compiladores.AST.NodeType;
 import compiladores.lexicon.TokenType;
+import compiladores.semantic.ASTVisitor;
 
 public class BinaryOperation extends ExpresionNode {
     private ExpresionNode left;
@@ -26,5 +27,10 @@ public class BinaryOperation extends ExpresionNode {
 
     public ExpresionNode getRight() {
         return right;
+    }
+    @Override
+    public void accept(ASTVisitor visitor) {
+        //System.out.println("BinaryOperation.accept");
+        visitor.visit(this);
     }
 }

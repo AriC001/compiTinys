@@ -1,5 +1,7 @@
 package compiladores.AST.typeNodes;
 
+import compiladores.semantic.ASTVisitor;
+
 public class ArrayTypeNode extends TypeNode {
     private TypeNode elementType;
 
@@ -14,5 +16,10 @@ public class ArrayTypeNode extends TypeNode {
 
     public void setElementType(TypeNode elementType) {
         this.elementType = elementType;
+    }
+
+    @Override
+    public void accept(ASTVisitor visitor) {
+        visitor.visit(this);
     }
 }

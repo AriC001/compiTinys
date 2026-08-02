@@ -145,10 +145,11 @@ public class SintaxAnalyzer {
             return new ClassNode(name,type, atributes);
         }
         else if (lookahead.getTokenName() == LLAVEABRE) {
+            ReferenceTypeNode type = new ReferenceTypeNode("Object");
             match(LLAVEABRE);
             List<AttributeNode> atributes = atributoIt();
             match(LLAVECIERRA);
-            return new ClassNode(name, atributes);
+            return new ClassNode(name,type ,atributes);
         }
         else {
             error(DOSPUNTOS,LLAVEABRE);
@@ -469,13 +470,13 @@ public class SintaxAnalyzer {
         switch (lookahead.getTokenName()) {
             case IDCLASSSTR:
                 match(IDCLASSSTR);
-                return new PrimitiveTypeNode("str");
+                return new PrimitiveTypeNode("Str");
             case IDCLASSBOOL:
                 match(IDCLASSBOOL);
-                return new PrimitiveTypeNode("bool");
+                return new PrimitiveTypeNode("Bool");
             case IDCLASSINT:
                 match(IDCLASSINT);
-                return new PrimitiveTypeNode("int");
+                return new PrimitiveTypeNode("Int");
             default:
                 error(IDCLASSSTR, IDCLASSBOOL, IDCLASSINT);
                 return null; // This line will never be reached due to the error() call, but it's needed to satisfy the compiler.
@@ -484,10 +485,11 @@ public class SintaxAnalyzer {
     TypeNode tipoReferencia(){  //	idclass
         if (lookahead.getTokenName() == IDCLASSIO) {
             match(IDCLASSIO);
-            return new ReferenceTypeNode("io");
+            return new ReferenceTypeNode("IO");
         }else{
+            String className = lookahead.getLexeme();
             match(IDCLASS);
-            return new ReferenceTypeNode(lookahead.getLexeme());
+            return new ReferenceTypeNode(className);
         }
     }
     TypeNode tipoArreglo(){  //	Array
@@ -663,7 +665,7 @@ public class SintaxAnalyzer {
     }
     ExpresionNode accesoSelfSimple(){  //	self,
         match(PRSELF);
-        SelfNode selfNode = new SelfNode();
+        SelfNode selfNode = new SelfNode(); //pero quien es self no tengo referencia??
         return encadenadoSimpleIt(selfNode);
     }
     ExpresionNode encadenadoSimpleIt(ExpresionNode parent) {
@@ -728,10 +730,15 @@ public class SintaxAnalyzer {
         if (lookahead.getTokenName() == OPOR) {
             match(OPOR);
             ExpresionNode right = expAnd();
-            OrNode nuevo = new OrNode(
+            BinaryOperation nuevo = new BinaryOperation(
+                    OPOR,
                     left,
                     right
             );
+            /*OrNode nuevo = new OrNode(
+                    left,
+                    right
+            );*/
             return expOr2(nuevo);
         }
         else if (lookahead.getTokenName() == PUNTOYCOMA || lookahead.getTokenName() == PARCIERRA || lookahead.getTokenName() == IDMETAT || lookahead.getTokenName() == PRSELF || lookahead.getTokenName() == CORCIERRA || lookahead.getTokenName() == COMA ) {
@@ -1025,7 +1032,7 @@ public class SintaxAnalyzer {
     }
     ExpresionNode accesoSelf(){ //	self
         match(PRSELF);
-        SelfNode selfNode = new SelfNode();
+        SelfNode selfNode = new SelfNode(); //no tengo referencia de self, como lo hago?
         return accesoSelfF(selfNode);
     }
     ExpresionNode accesoSelfF(SelfNode selfNode){ //	punto
@@ -1103,13 +1110,16 @@ public class SintaxAnalyzer {
         String className  = lookahead.getLexeme();
         if(lookahead.getTokenName() == IDCLASSIO) {
             match(IDCLASSIO);
-            className = "io";
+            className = "IO";
         } else {
             match(IDCLASS);
         }
         match(PUNTO);
-        MethodCallNode method = (MethodCallNode) llamadaMetodo();
-        StaticMethodCallNode node = new StaticMethodCallNode(className,method);
+        String methodName = lookahead.getLexeme();
+        match(IDMETAT);
+        List<ExpresionNode> args = argumentosActuales();
+        //MethodCallNode method = (MethodCallNode) llamadaMetodo();
+        StaticMethodCallNode node = new StaticMethodCallNode(className,methodName,args);
         return llamadaMetodoEstaticoF(node);
     }
     ExpresionNode llamadaMetodoEstaticoF(ExpresionNode node){ //	punto

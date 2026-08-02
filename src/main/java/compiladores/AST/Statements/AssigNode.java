@@ -2,6 +2,7 @@ package compiladores.AST.Statements;
 
 import compiladores.AST.ExpresionNode;
 import compiladores.AST.NodeType;
+import compiladores.semantic.ASTVisitor;
 
 public class AssigNode extends SentenceNode {
     private ExpresionNode variable;
@@ -27,5 +28,9 @@ public class AssigNode extends SentenceNode {
 
     public void setExpresion(ExpresionNode expresion) {
         this.expresion = expresion;
+    }
+    @Override
+    public void accept(ASTVisitor visitor) {
+        visitor.visit(this);
     }
 }

@@ -3,6 +3,7 @@ package compiladores.AST.operations;
 import compiladores.AST.ExpresionNode;
 import compiladores.AST.NodeType;
 import compiladores.lexicon.TokenType;
+import compiladores.semantic.ASTVisitor;
 
 public class UnaryOperation extends ExpresionNode{
     private ExpresionNode operand;
@@ -20,5 +21,9 @@ public class UnaryOperation extends ExpresionNode{
 
     public ExpresionNode getOperand() {
         return operand;
+    }
+    @Override
+    public void accept(ASTVisitor visitor) {
+        visitor.visit(this);
     }
 }

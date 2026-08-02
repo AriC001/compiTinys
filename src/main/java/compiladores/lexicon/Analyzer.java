@@ -31,9 +31,9 @@ public class Analyzer {
         reservedWords.put("else", TokenType.PRELSE);
         reservedWords.put("class", TokenType.PRCLASS);
         reservedWords.put("impl", TokenType.PRIMPL);
-        reservedWords.put("true", TokenType.PRTRUE);
-        reservedWords.put("false", TokenType.PRFALSE);
-        reservedWords.put("nil", TokenType.PRNIL);
+        reservedWords.put("true", TokenType.LITBOOL);
+        reservedWords.put("false", TokenType.LITBOOL);
+        reservedWords.put("nil", TokenType.LITNIL);
         reservedWords.put("ret", TokenType.PRRET);
         reservedWords.put("while", TokenType.PRWHILE);
         reservedWords.put("for", TokenType.PRFOR);

@@ -1,5 +1,7 @@
 package compiladores.AST;
 
+import compiladores.semantic.ASTVisitor;
+
 public class ArrayAccessNode extends ExpresionNode {
     private ExpresionNode array;
     private ExpresionNode index;
@@ -24,5 +26,9 @@ public class ArrayAccessNode extends ExpresionNode {
 
     public void setIndex(ExpresionNode index) {
         this.index = index;
+    }
+    @Override
+    public void accept(ASTVisitor visitor) {
+        visitor.visit(this);
     }
 }

@@ -1,6 +1,7 @@
 package compiladores.AST;
 
 import compiladores.AST.typeNodes.TypeNode;
+import compiladores.semantic.ASTVisitor;
 
 public class VariableDeclarationNode extends AstNode {
 
@@ -19,5 +20,10 @@ public class VariableDeclarationNode extends AstNode {
 
     public String getName() {
         return name;
+    }
+
+    @Override
+    public void accept(ASTVisitor visitor) {
+        visitor.visit(this);
     }
 }

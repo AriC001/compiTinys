@@ -1,6 +1,7 @@
 package compiladores.AST.Statements;
 
 import compiladores.AST.*;
+import compiladores.semantic.ASTVisitor;
 
 public class ForNode extends SentenceNode {
     private VariableDeclarationNode variable;
@@ -36,5 +37,9 @@ public class ForNode extends SentenceNode {
 
     public void setBody(SentenceNode body) {
         this.body = body;
+    }
+    @Override
+    public void accept(ASTVisitor visitor) {
+        visitor.visit(this);
     }
 }

@@ -1,5 +1,7 @@
 package compiladores.AST;
 
+import compiladores.semantic.ASTVisitor;
+
 import java.util.List;
 
 public class MethodCallNode extends ExpresionNode {
@@ -24,5 +26,9 @@ public class MethodCallNode extends ExpresionNode {
 
     public List<ExpresionNode> getArguments() {
         return arguments;
+    }
+    @Override
+    public void accept(ASTVisitor visitor) {
+        visitor.visit(this);
     }
 }
